@@ -1,0 +1,9 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+logging:
+  level:
+    br.com.triaige: DEBUG

@@ -1,0 +1,18 @@
+# Perfil HO (homologação) — persistência em MySQL local (docker-compose)
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/triaige_srv_orchestrator?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:triaige}
+    password: ${DB_PASSWORD:triaige}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
