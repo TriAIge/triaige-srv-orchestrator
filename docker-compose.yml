@@ -1,0 +1,86 @@
+version: "3.9"
+
+services:
+
+  # ── MySQL (perfil ho — homologação local) ─────────────────────────────────
+  mysql:
+    image: mysql:8.3
+    container_name: triaige-srv-orchestrator-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: triaige_srv_orchestrator
+      MYSQL_USER: triaige
+      MYSQL_PASSWORD: triaige
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "triaige", "--password=triaige"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── LocalStack (SQS + S3) ──────────────────────────────────────────────────
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: triaige-srv-orchestrator-localstack
+    restart: unless-stopped
+    environment:
+      - SERVICES=sqs,s3
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - LOCALSTACK_HOST=localhost
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./scripts/localstack:/etc/localstack/init/ready.d
+      - localstack_data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── triaige-srv-orchestrator ───────────────────────────────────────────────
+  srv-orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: triaige-srv-orchestrator
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ho
+      DB_URL: jdbc:mysql://mysql:3306/triaige_srv_orchestrator?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: triaige
+      DB_PASSWORD: triaige
+      AWS_REGION: us-east-1
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_S3_ENDPOINT: http://localstack:4566
+      RAW_DOCUMENTS_BUCKET: triaige-raw-documents
+      CURATED_RESULTS_BUCKET: triaige-results
+      DOCS_RECEIVED_QUEUE_URL: http://localstack:4566/000000000000/triaige-docs-received
+      DOCS_PREPROCESSING_QUEUE_URL: http://localstack:4566/000000000000/triaige-docs-preprocessing
+      RESULTS_READY_QUEUE_URL: http://localstack:4566/000000000000/triaige-results-ready
+      # triaige-srv-ai roda em um docker-compose separado (porta 8082 publicada no host).
+      # host.docker.internal aponta para o host a partir do container.
+      AI_SERVICE_BASE_URL: http://host.docker.internal:8082
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
+  localstack_data:
