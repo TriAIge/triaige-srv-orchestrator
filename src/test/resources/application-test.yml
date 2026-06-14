@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:tc:mysql:8.3:///triaige_test?TC_INITSCRIPT=init-test-db.sql}
+    username: test
+    password: test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+aws:
+  region: us-east-1
+  sqs:
+    endpoint: http://localhost:4566
+    docs-received-queue-url: http://localhost:4566/000000000000/triaige-docs-received
+    docs-preprocessing-queue-url: http://localhost:4566/000000000000/triaige-docs-preprocessing
+    results-ready-queue-url: http://localhost:4566/000000000000/triaige-results-ready
+  s3:
+    curated-results-bucket: triaige-results
+
+triaige:
+  ai-service:
+    base-url: http://localhost:8082
+
+logging:
+  level:
+    br.com.triaige: DEBUG
