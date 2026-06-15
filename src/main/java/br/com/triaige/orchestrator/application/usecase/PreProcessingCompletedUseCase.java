@@ -9,6 +9,7 @@ import br.com.triaige.orchestrator.domain.enums.DocumentStatus;
 import br.com.triaige.orchestrator.domain.enums.EventType;
 import br.com.triaige.orchestrator.domain.enums.LegalArea;
 import br.com.triaige.orchestrator.domain.enums.SessionStatus;
+import br.com.triaige.orchestrator.domain.exception.AiAnalysisException;
 import br.com.triaige.orchestrator.domain.exception.BusinessRuleException;
 import br.com.triaige.orchestrator.domain.exception.SessionNotFoundException;
 import br.com.triaige.orchestrator.infrastructure.ai.AiAnalysisClient;
@@ -159,8 +160,19 @@ public class PreProcessingCompletedUseCase {
         completedRequest.setCorrelationId(session.getCorrelationId());
 
         if (!"COMPLETED".equalsIgnoreCase(aiResponse.getStatus())) {
-            log.error("AI analysis did not complete for session {}: status={}",
-                    session.getId(), aiResponse.getStatus());
+            AiAnalysisResponse.AnalysisError error = aiResponse.getError();
+
+            // Erros retentáveis (ex.: timeout do Gemini) não encerram a sessão aqui:
+            // a exceção propaga, a transação é desfeita e o callback retorna erro
+            // para que o SQS reentregue a mensagem de pré-processamento.
+            if (error != null && error.isRetryable()) {
+                throw new AiAnalysisException(String.format(
+                        "Falha retentável do serviço de IA: sessionId=%s, errorCode=%s, message=%s",
+                        session.getId(), error.getCode(), error.getMessage()), null);
+            }
+
+            log.error("AI analysis did not complete for session {}: status={}, errorCode={}",
+                    session.getId(), aiResponse.getStatus(), error != null ? error.getCode() : null);
             completedRequest.setStatus("FALHA");
             return completedRequest;
         }
