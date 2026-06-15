@@ -31,10 +31,11 @@ Front-end / API Gateway
 │  POST /sessions/{}/proc    │  │
 │  GET  /sessions/{}         │  │
 └────────┬───────────────────┼──┘
-         │ SQS triaige-docs-received     S3 PutObject
-         │ (ponteiros)        │           ▼
-         ▼                    ▼   bucket triaige-raw-documents
-   (registro)        SQS triaige-docs-preprocessing
+         │                    │ S3 PutObject
+         │                    ▼
+         │           bucket triaige-raw-documents
+         ▼
+                    SQS triaige-docs-preprocessing
                               │
                               ▼
                     pré-processamento (Lambda, ainda não implementada)
@@ -125,7 +126,7 @@ docker compose up localstack -d
 ```
 
 O script `scripts/localstack/01-create-queues.sh` é executado automaticamente pelo LocalStack na inicialização e cria:
-- Filas SQS (com DLQ): `triaige-docs-received`, `triaige-docs-preprocessing`, `triaige-results-ready`
+- Filas SQS (com DLQ): `triaige-docs-preprocessing`, `triaige-results-ready`
 - Buckets S3: `triaige-raw-documents`, `triaige-processed-documents`, `triaige-results`
 - Documento TXT de teste usado pelo `triaige-srv-ai`:
   `s3://triaige-processed-documents/tenant-001/sess-2026-000001/doc-001/normalized.txt`
@@ -138,7 +139,6 @@ export AWS_SQS_ENDPOINT=http://localhost:4566
 export AWS_S3_ENDPOINT=http://localhost:4566
 export RAW_DOCUMENTS_BUCKET=triaige-raw-documents
 export CURATED_RESULTS_BUCKET=triaige-results
-export DOCS_RECEIVED_QUEUE_URL=http://localhost:4566/000000000000/triaige-docs-received
 export DOCS_PREPROCESSING_QUEUE_URL=http://localhost:4566/000000000000/triaige-docs-preprocessing
 export RESULTS_READY_QUEUE_URL=http://localhost:4566/000000000000/triaige-results-ready
 export AI_SERVICE_BASE_URL=http://localhost:8082
@@ -198,7 +198,6 @@ para encadear as próximas chamadas sem copiar/colar valores manualmente.
 | `AWS_S3_ENDPOINT` | _(vazio = AWS real)_ | Endpoint customizado do S3 (LocalStack) |
 | `RAW_DOCUMENTS_BUCKET` | `triaige-raw-documents` | Bucket de destino do upload de documentos |
 | `CURATED_RESULTS_BUCKET` | `triaige-results` | Bucket de destino do resultado da análise de IA (curated) |
-| `DOCS_RECEIVED_QUEUE_URL` | URL LocalStack local | URL da fila `triaige-docs-received` (registro de documentos) |
 | `DOCS_PREPROCESSING_QUEUE_URL` | URL LocalStack local | URL da fila `triaige-docs-preprocessing` (pré-processamento) |
 | `RESULTS_READY_QUEUE_URL` | URL LocalStack local | URL da fila `triaige-results-ready` (resultado pronto para notificação) |
 | `AI_SERVICE_BASE_URL` | `http://localhost:8082` | URL base do `triaige-srv-ai` (chamada REST síncrona de análise) |
@@ -287,7 +286,7 @@ br.com.triaige.orchestrator
 │   └── sqs
 │       ├── QueuePublisher.java             ← interface
 │       ├── SqsQueuePublisher.java          ← implementação AWS SDK v2
-│       └── *Message.java                   ← DTOs das mensagens SQS (DocumentReceivedMessage, PreProcessingRequestedMessage, TriageResultReadyMessage)
+│       └── *Message.java                   ← DTOs das mensagens SQS (PreProcessingRequestedMessage, TriageResultReadyMessage)
 └── shared
     ├── error
     │   ├── ErrorResponse.java

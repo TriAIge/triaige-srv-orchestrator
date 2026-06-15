@@ -14,7 +14,6 @@ public class AwsProperties {
     @Data
     public static class Sqs {
         private String endpoint;
-        private String docsReceivedQueueUrl;
         private String docsPreprocessingQueueUrl;
         private String resultsReadyQueueUrl;
     }

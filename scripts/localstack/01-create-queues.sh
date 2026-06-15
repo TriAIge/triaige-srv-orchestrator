@@ -4,9 +4,6 @@ set -e
 
 echo "Creating SQS DLQs..."
 
-awslocal sqs create-queue --queue-name triaige-docs-received-dlq \
-  --attributes '{"MessageRetentionPeriod":"604800"}'
-
 awslocal sqs create-queue --queue-name triaige-docs-preprocessing-dlq \
   --attributes '{"MessageRetentionPeriod":"604800"}'
 
@@ -15,10 +12,6 @@ awslocal sqs create-queue --queue-name triaige-results-ready-dlq \
 
 echo "Creating SQS queues..."
 
-DOCS_RECEIVED_DLQ_ARN=$(awslocal sqs get-queue-attributes \
-  --queue-url "$(awslocal sqs get-queue-url --queue-name triaige-docs-received-dlq --query QueueUrl --output text)" \
-  --attribute-names QueueArn --query Attributes.QueueArn --output text)
-
 DOCS_PREPROCESSING_DLQ_ARN=$(awslocal sqs get-queue-attributes \
   --queue-url "$(awslocal sqs get-queue-url --queue-name triaige-docs-preprocessing-dlq --query QueueUrl --output text)" \
   --attribute-names QueueArn --query Attributes.QueueArn --output text)
@@ -26,9 +19,6 @@ DOCS_PREPROCESSING_DLQ_ARN=$(awslocal sqs get-queue-attributes \
 RESULTS_READY_DLQ_ARN=$(awslocal sqs get-queue-attributes \
   --queue-url "$(awslocal sqs get-queue-url --queue-name triaige-results-ready-dlq --query QueueUrl --output text)" \
   --attribute-names QueueArn --query Attributes.QueueArn --output text)
-
-awslocal sqs create-queue --queue-name triaige-docs-received \
-  --attributes "{\"VisibilityTimeout\":\"60\",\"MessageRetentionPeriod\":\"604800\",\"ReceiveMessageWaitTimeSeconds\":\"20\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"${DOCS_RECEIVED_DLQ_ARN}\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}"
 
 awslocal sqs create-queue --queue-name triaige-docs-preprocessing \
   --attributes "{\"VisibilityTimeout\":\"300\",\"MessageRetentionPeriod\":\"604800\",\"ReceiveMessageWaitTimeSeconds\":\"20\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"${DOCS_PREPROCESSING_DLQ_ARN}\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}"

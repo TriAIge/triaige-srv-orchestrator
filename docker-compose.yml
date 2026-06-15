@@ -65,7 +65,6 @@ services:
       AWS_S3_ENDPOINT: http://localstack:4566
       RAW_DOCUMENTS_BUCKET: triaige-raw-documents
       CURATED_RESULTS_BUCKET: triaige-results
-      DOCS_RECEIVED_QUEUE_URL: http://localstack:4566/000000000000/triaige-docs-received
       DOCS_PREPROCESSING_QUEUE_URL: http://localstack:4566/000000000000/triaige-docs-preprocessing
       RESULTS_READY_QUEUE_URL: http://localstack:4566/000000000000/triaige-results-ready
       # triaige-srv-ai roda em um docker-compose separado (porta 8082 publicada no host).
