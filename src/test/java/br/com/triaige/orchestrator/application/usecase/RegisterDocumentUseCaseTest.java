@@ -41,6 +41,7 @@ class RegisterDocumentUseCaseTest {
     @Mock private LegalDocumentRepository documentRepository;
     @Mock private AuditService auditService;
     @Mock private DocumentStoragePort documentStoragePort;
+    @Mock private TriggerProcessingUseCase triggerProcessingUseCase;
 
     @InjectMocks
     private RegisterDocumentUseCase useCase;
@@ -86,15 +87,37 @@ class RegisterDocumentUseCaseTest {
 
         // Act
         RegisterDocumentResponse response = useCase.execute(
-                sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID());
+                sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID(), false);
 
         // Assert
         assertThat(response.getDocumentId()).isNotNull();
         assertThat(response.getSessionId()).isEqualTo(sessionId);
         assertThat(response.getStatus()).isEqualTo(DocumentStatus.REGISTRADO);
         assertThat(response.getBucket()).isEqualTo("triaige-raw-documents");
+        assertThat(response.isProcessingTriggered()).isFalse();
         verify(documentStoragePort).upload(eq(openSession.getLawFirm().getId()), eq(sessionId), any());
         verify(documentRepository).save(any(LegalDocument.class));
+        verify(triggerProcessingUseCase, never()).execute(any(), any());
+    }
+
+    @Test
+    @DisplayName("deve disparar processamento automaticamente quando ultimoDocumento=true")
+    void shouldTriggerProcessingWhenLastDocument() {
+        // Arrange
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(openSession));
+        when(documentStoragePort.upload(eq(openSession.getLawFirm().getId()), eq(sessionId), any()))
+                .thenReturn(storedDocument);
+        when(documentRepository.save(any(LegalDocument.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        RegisterDocumentResponse response = useCase.execute(
+                sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID(), true);
+
+        // Assert
+        assertThat(response.getStatus()).isEqualTo(DocumentStatus.AGUARDANDO_PRE_PROCESSAMENTO);
+        assertThat(response.isProcessingTriggered()).isTrue();
+        verify(triggerProcessingUseCase).execute(sessionId, null);
     }
 
     @Test
@@ -104,7 +127,7 @@ class RegisterDocumentUseCaseTest {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> useCase.execute(sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID()))
+        assertThatThrownBy(() -> useCase.execute(sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID(), false))
                 .isInstanceOf(SessionNotFoundException.class);
         verify(documentStoragePort, never()).upload(any(), any(), any());
         verify(documentRepository, never()).save(any());
@@ -118,7 +141,7 @@ class RegisterDocumentUseCaseTest {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(openSession));
 
         // Act & Assert
-        assertThatThrownBy(() -> useCase.execute(sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID()))
+        assertThatThrownBy(() -> useCase.execute(sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID(), false))
                 .isInstanceOf(InvalidSessionStateException.class)
                 .hasMessageContaining("registro de documento");
         verify(documentStoragePort, never()).upload(any(), any(), any());
@@ -133,7 +156,7 @@ class RegisterDocumentUseCaseTest {
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(openSession));
 
         // Act & Assert
-        assertThatThrownBy(() -> useCase.execute(sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID()))
+        assertThatThrownBy(() -> useCase.execute(sessionId, file, DocumentType.PETICAO_INICIAL, null, UUID.randomUUID(), false))
                 .isInstanceOf(InvalidSessionStateException.class);
     }
 }

@@ -56,15 +56,17 @@ public class SessionController {
             @PathVariable UUID sessionId,
             @RequestPart("file") MultipartFile file,
             @RequestParam("tipoDocumento") DocumentType tipoDocumento,
+            @RequestParam(value = "ultimoDocumento", required = false, defaultValue = "false") boolean ultimoDocumento,
             @RequestHeader(value = "X-Correlation-Id", required = false) String correlationIdHeader,
             @RequestHeader(value = "X-Law-Firm-Id", required = false) String lawFirmIdHeader) {
 
         UUID correlationId = CorrelationIdUtil.resolve(correlationIdHeader);
 
-        log.info("POST /api/v1/sessions/{}/documents - correlationId={}", sessionId, correlationId);
+        log.info("POST /api/v1/sessions/{}/documents - correlationId={}, ultimoDocumento={}",
+                sessionId, correlationId, ultimoDocumento);
 
         RegisterDocumentResponse response = registerDocumentUseCase.execute(
-                sessionId, file, tipoDocumento, parseLawFirmId(lawFirmIdHeader), correlationId);
+                sessionId, file, tipoDocumento, parseLawFirmId(lawFirmIdHeader), correlationId, ultimoDocumento);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

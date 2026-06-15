@@ -15,4 +15,5 @@ public class RegisterDocumentResponse {
     private DocumentStatus status;
     private String bucket;
     private String objectKey;
+    private boolean processingTriggered;
 }
