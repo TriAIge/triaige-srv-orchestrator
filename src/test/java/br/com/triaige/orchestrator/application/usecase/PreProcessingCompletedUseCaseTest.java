@@ -219,4 +219,25 @@ class PreProcessingCompletedUseCaseTest {
         verify(aiAnalysisClient, never()).analyze(any());
         verify(aiProcessingCompletedUseCase, never()).execute(any(), any());
     }
+
+    @Test
+    @DisplayName("deve marcar sessão como FALHA e não chamar a IA quando documento volta com status EMPTY")
+    void shouldMarkSessionAsFailedWhenDocumentIsEmpty() {
+        // Arrange
+        request.getProcessedDocuments().get(0).setStatus("EMPTY");
+        when(sessionRepository.findByIdWithDetails(sessionId)).thenReturn(Optional.of(session));
+        when(documentRepository.findBySessionId(sessionId)).thenReturn(List.of(document));
+        when(sessionRepository.save(any())).thenReturn(session);
+
+        // Act
+        useCase.execute(sessionId, request);
+
+        // Assert
+        assertThat(document.getStatus()).isEqualTo(DocumentStatus.FALHA_PRE_PROCESSAMENTO);
+        assertThat(document.getProcessedBucket()).isEqualTo("triaige-processed-documents");
+        assertThat(document.getProcessedObjectKey()).isEqualTo("tenant/test/processed/peticao.txt");
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.FALHA);
+        verify(aiAnalysisClient, never()).analyze(any());
+        verify(aiProcessingCompletedUseCase, never()).execute(any(), any());
+    }
 }
