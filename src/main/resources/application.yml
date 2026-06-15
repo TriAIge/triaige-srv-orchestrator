@@ -3,12 +3,12 @@ spring:
     name: triaige-srv-orchestrator
 
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE:ho}
 
   # Configurações sensíveis (buckets, filas, credenciais de banco) ficam fora deste
-  # repositório, em um arquivo por ambiente (ex: application-prod.yml) no projeto
+  # repositório, em um arquivo por ambiente (ex: application-ho.yml) no projeto
   # triaige-srv-orchestrator-config. O import é opcional: se o diretório/arquivo
-  # não existir (ex: dev local sem o repo clonado ao lado), os valores padrão
+  # não existir (ex: ambiente local sem o repo clonado ao lado), os valores padrão
   # definidos abaixo e em application-{profile}.yml continuam valendo.
   config:
     import: "optional:file:${CONFIG_REPO_PATH:../triaige-srv-orchestrator-config/}"
