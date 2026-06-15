@@ -39,7 +39,6 @@ aws:
   region: ${AWS_REGION:us-east-1}
   sqs:
     endpoint: ${AWS_SQS_ENDPOINT:}
-    docs-received-queue-url: ${DOCS_RECEIVED_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-received}
     docs-preprocessing-queue-url: ${DOCS_PREPROCESSING_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-preprocessing}
     results-ready-queue-url: ${RESULTS_READY_QUEUE_URL:http://localhost:4566/000000000000/triaige-results-ready}
   s3:

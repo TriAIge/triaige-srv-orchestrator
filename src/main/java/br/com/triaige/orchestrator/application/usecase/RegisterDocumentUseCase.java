@@ -9,20 +9,16 @@ import br.com.triaige.orchestrator.domain.enums.DocumentType;
 import br.com.triaige.orchestrator.domain.enums.EventType;
 import br.com.triaige.orchestrator.domain.exception.InvalidSessionStateException;
 import br.com.triaige.orchestrator.domain.exception.SessionNotFoundException;
-import br.com.triaige.orchestrator.infrastructure.config.AwsProperties;
 import br.com.triaige.orchestrator.infrastructure.persistence.LegalDocumentRepository;
 import br.com.triaige.orchestrator.infrastructure.persistence.TriageSessionRepository;
 import br.com.triaige.orchestrator.infrastructure.s3.DocumentStoragePort;
 import br.com.triaige.orchestrator.infrastructure.s3.StoredDocument;
-import br.com.triaige.orchestrator.infrastructure.sqs.DocumentReceivedMessage;
-import br.com.triaige.orchestrator.infrastructure.sqs.QueuePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -34,8 +30,6 @@ public class RegisterDocumentUseCase {
     private final LegalDocumentRepository documentRepository;
     private final AuditService auditService;
     private final DocumentStoragePort documentStoragePort;
-    private final QueuePublisher queuePublisher;
-    private final AwsProperties awsProperties;
 
     @Transactional
     public RegisterDocumentResponse execute(UUID sessionId, MultipartFile file, DocumentType tipoDocumento,
@@ -78,20 +72,6 @@ public class RegisterDocumentUseCase {
                 EventType.DOCUMENT_REGISTERED,
                 "Documento registrado: " + file.getOriginalFilename()
         );
-
-        // Notifica o recebimento do documento — apenas ponteiros, sem conteúdo
-        DocumentReceivedMessage message = DocumentReceivedMessage.builder()
-                .eventType("DOCUMENT_RECEIVED")
-                .sessionId(sessionId)
-                .tenantId(session.getLawFirm().getId())
-                .correlationId(effectiveCorrelationId)
-                .protocolo(session.getProtocolo())
-                .bucket(saved.getRawBucket())
-                .objectKey(saved.getRawObjectKey())
-                .createdAt(Instant.now())
-                .build();
-
-        queuePublisher.publish(awsProperties.getSqs().getDocsReceivedQueueUrl(), message);
 
         log.info("Document registered: documentId={}, sessionId={}, file={}",
                 saved.getId(), sessionId, file.getOriginalFilename());
