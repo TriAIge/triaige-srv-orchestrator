@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: triaige-srv-orchestrator
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Configurações sensíveis (buckets, filas, credenciais de banco) ficam fora deste
+  # repositório, em um arquivo por ambiente (ex: application-prod.yml) no projeto
+  # triaige-srv-orchestrator-config. O import é opcional: se o diretório/arquivo
+  # não existir (ex: dev local sem o repo clonado ao lado), os valores padrão
+  # definidos abaixo e em application-{profile}.yml continuam valendo.
+  config:
+    import: "optional:file:${CONFIG_REPO_PATH:../triaige-srv-orchestrator-config/}"
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        type:
+          preferred_uuid_jdbc_type: CHAR
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:50MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:50MB}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+aws:
+  region: ${AWS_REGION:us-east-1}
+  sqs:
+    endpoint: ${AWS_SQS_ENDPOINT:}
+    docs-received-queue-url: ${DOCS_RECEIVED_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-received}
+    docs-preprocessing-queue-url: ${DOCS_PREPROCESSING_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-preprocessing}
+    results-ready-queue-url: ${RESULTS_READY_QUEUE_URL:http://localhost:4566/000000000000/triaige-results-ready}
+  s3:
+    endpoint: ${AWS_S3_ENDPOINT:}
+    raw-documents-bucket: ${RAW_DOCUMENTS_BUCKET:triaige-raw-documents}
+    curated-results-bucket: ${CURATED_RESULTS_BUCKET:triaige-results}
+
+triaige:
+  ai-service:
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    br.com.triaige: ${LOG_LEVEL:INFO}
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [sessionId=%X{sessionId}] [correlationId=%X{correlationId}] %logger{36} - %msg%n"

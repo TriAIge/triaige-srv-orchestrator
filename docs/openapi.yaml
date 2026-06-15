@@ -1,0 +1,590 @@
+openapi: 3.0.3
+info:
+  title: triaige-srv-orchestrator
+  description: >-
+    Serviço orquestrador do projeto TriAIge — controla o ciclo de vida de
+    sessões jurídicas, coordena o fluxo entre pré-processamento (via Amazon SQS),
+    IA (via REST síncrono com o triaige-srv-ai) e notificação (via Amazon SQS),
+    e persiste rastreabilidade em MySQL/H2.
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8080
+    description: Ambiente local (dev)
+
+tags:
+  - name: Sessions
+    description: Endpoints públicos de gerenciamento de sessões de triagem
+  - name: Internal Callbacks
+    description: >-
+      Endpoints internos, usados pelos serviços de pré-processamento e IA
+      para sinalizar a conclusão das suas etapas
+
+paths:
+  /api/v1/sessions:
+    post:
+      tags: [Sessions]
+      summary: Abrir uma nova sessão de triagem
+      operationId: createSession
+      parameters:
+        - $ref: '#/components/parameters/CorrelationIdHeader'
+        - $ref: '#/components/parameters/LawFirmIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Sessão criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/sessions/{sessionId}/documents:
+    post:
+      tags: [Sessions]
+      summary: Registrar um documento e enviá-lo para o bucket S3
+      operationId: registerDocument
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/CorrelationIdHeader'
+        - $ref: '#/components/parameters/LawFirmIdHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - tipoDocumento
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo do documento (ex. PDF)
+                tipoDocumento:
+                  $ref: '#/components/schemas/DocumentType'
+      responses:
+        '201':
+          description: Documento registrado e armazenado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterDocumentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/sessions/{sessionId}/process:
+    post:
+      tags: [Sessions]
+      summary: Disparar o processamento da sessão (publica na fila SQS de pré-processamento)
+      operationId: triggerProcessing
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/LawFirmIdHeader'
+      responses:
+        '202':
+          description: Processamento aceito e enfileirado
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/sessions/{sessionId}:
+    get:
+      tags: [Sessions]
+      summary: Consultar status e detalhes de uma sessão
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/LawFirmIdHeader'
+      responses:
+        '200':
+          description: Detalhes da sessão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/sessions/{sessionId}/events:
+    get:
+      tags: [Sessions]
+      summary: Consultar a trilha de auditoria de uma sessão
+      operationId: getSessionEvents
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+        - $ref: '#/components/parameters/LawFirmIdHeader'
+      responses:
+        '200':
+          description: Lista de eventos de auditoria, em ordem cronológica
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEventResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/api/v1/sessions/{sessionId}/pre-processing/completed:
+    post:
+      tags: [Internal Callbacks]
+      summary: Callback do serviço de pré-processamento (OCR/normalização)
+      description: >-
+        Chamado pelo serviço de pré-processamento quando os documentos de uma
+        sessão foram processados (texto extraído/normalizado e gravado no
+        bucket de documentos processados).
+      operationId: preProcessingCompleted
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreProcessingCompletedRequest'
+      responses:
+        '200':
+          description: Callback processado com sucesso
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/api/v1/sessions/{sessionId}/ai-processing/completed:
+    post:
+      tags: [Internal Callbacks]
+      summary: Callback de conclusão do processamento de IA
+      description: >-
+        Invocado quando o processamento de triagem (via triaige-srv-ai) foi
+        concluído — normalmente em processo, pelo próprio
+        PreProcessingCompletedUseCase, mas também disponível como endpoint
+        para reprocessamento manual. O orquestrador atualiza o status da
+        sessão, grava o resultado no bucket curated e publica o evento na
+        fila SQS triaige-results-ready.
+      operationId: aiProcessingCompleted
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiProcessingCompletedRequest'
+      responses:
+        '200':
+          description: Callback processado com sucesso, evento publicado em triaige-results-ready
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    SessionIdPath:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Identificador da sessão de triagem
+
+    CorrelationIdHeader:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: UUID de rastreabilidade. Gerado automaticamente se ausente.
+
+    LawFirmIdHeader:
+      name: X-Law-Firm-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Isolamento por escritório jurídico. Sobrescreve o `lawFirmId` do body quando presente.
+
+  responses:
+    BadRequest:
+      description: Requisição inválida (erro de validação)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Sessão ou documento não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Sessão em estado inválido para a operação solicitada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnprocessableEntity:
+      description: Violação de regra de negócio
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: Erro interno inesperado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    LegalArea:
+      type: string
+      description: >-
+        Área jurídica do caso. CRIMINAL é explicitamente excluído pelas
+        regras de negócio.
+      enum: [CIVEL, TRABALHISTA]
+
+    CaseType:
+      type: string
+      enum:
+        - RECLAMACAO_TRABALHISTA
+        - ACAO_CIVIL
+        - INDENIZACAO
+        - CONTRATO_LOCACAO
+        - DIVORCIO
+        - INVENTARIO
+        - OUTROS
+
+    NotificationChannel:
+      type: string
+      enum: [EMAIL, SMS, WHATSAPP]
+
+    DocumentType:
+      type: string
+      enum:
+        - PETICAO_INICIAL
+        - CONTESTACAO
+        - CONTRATO
+        - COMPROVANTE
+        - PROCURACAO
+        - DOCUMENTO_PESSOAL
+        - OUTROS
+
+    DocumentStatus:
+      type: string
+      enum:
+        - REGISTRADO
+        - AGUARDANDO_PRE_PROCESSAMENTO
+        - PRE_PROCESSADO
+        - FALHA_PRE_PROCESSAMENTO
+
+    SessionStatus:
+      type: string
+      enum:
+        - ABERTA
+        - AGUARDANDO_PRE_PROCESSAMENTO
+        - EM_PRE_PROCESSAMENTO
+        - AGUARDANDO_PROCESSAMENTO_IA
+        - EM_PROCESSAMENTO_IA
+        - CONCLUIDA
+        - FALHA
+        - CANCELADA
+
+    EventType:
+      type: string
+      enum:
+        - SESSION_CREATED
+        - DOCUMENT_REGISTERED
+        - PROCESSING_REQUESTED
+        - PRE_PROCESSING_COMPLETED
+        - AI_PROCESSING_COMPLETED
+        - SESSION_FAILED
+        - SESSION_CANCELLED
+
+    CreateSessionRequest:
+      type: object
+      required:
+        - lawFirmId
+        - titulo
+        - areaJuridica
+        - tipoCaso
+        - remetente
+      properties:
+        lawFirmId:
+          type: string
+          format: uuid
+          example: 11111111-1111-1111-1111-111111111111
+        titulo:
+          type: string
+          maxLength: 255
+          example: Reclamação trabalhista - horas extras
+        areaJuridica:
+          $ref: '#/components/schemas/LegalArea'
+        tipoCaso:
+          $ref: '#/components/schemas/CaseType'
+        remetente:
+          $ref: '#/components/schemas/RemetenteRequest'
+
+    RemetenteRequest:
+      type: object
+      required:
+        - nome
+        - canalPreferencial
+      properties:
+        nome:
+          type: string
+          maxLength: 200
+          example: João Silva
+        email:
+          type: string
+          format: email
+          maxLength: 200
+          example: joao@email.com
+        telefone:
+          type: string
+          maxLength: 30
+          example: "+5511999999999"
+        canalPreferencial:
+          $ref: '#/components/schemas/NotificationChannel'
+
+    CreateSessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        correlationId:
+          type: string
+          format: uuid
+        protocolo:
+          type: string
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+
+    RegisterDocumentResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        bucket:
+          type: string
+          example: triaige-raw-documents
+        objectKey:
+          type: string
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/raw/peticao-inicial.pdf
+
+    SessionDetailResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        protocolo:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        areaJuridica:
+          $ref: '#/components/schemas/LegalArea'
+        tipoCaso:
+          $ref: '#/components/schemas/CaseType'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSummary'
+        result:
+          $ref: '#/components/schemas/ResultSummary'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DocumentSummary:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        nomeArquivoOriginal:
+          type: string
+          example: peticao-inicial.pdf
+        tipoDocumento:
+          $ref: '#/components/schemas/DocumentType'
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+
+    ResultSummary:
+      type: object
+      properties:
+        resultBucket:
+          type: string
+          example: triaige-results
+        resultObjectKey:
+          type: string
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/result/resultado.json
+        summaryObjectKey:
+          type: string
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/result/resumo.txt
+
+    AuditEventResponse:
+      type: object
+      properties:
+        eventType:
+          $ref: '#/components/schemas/EventType'
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PreProcessingCompletedRequest:
+      type: object
+      required:
+        - correlationId
+        - processedDocuments
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+        processedDocuments:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ProcessedDocumentInfo'
+
+    ProcessedDocumentInfo:
+      type: object
+      required:
+        - documentId
+        - rawBucket
+        - rawObjectKey
+        - processedBucket
+        - processedObjectKey
+        - status
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        rawBucket:
+          type: string
+          maxLength: 200
+          example: triaige-raw-documents
+        rawObjectKey:
+          type: string
+          maxLength: 500
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/raw/peticao-inicial.pdf
+        processedBucket:
+          type: string
+          maxLength: 200
+          example: triaige-processed-documents
+        processedObjectKey:
+          type: string
+          maxLength: 500
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/processed/peticao-inicial.txt
+        status:
+          type: string
+          example: PROCESSADO
+
+    AiProcessingCompletedRequest:
+      type: object
+      required:
+        - correlationId
+        - status
+        - resultBucket
+        - resultObjectKey
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: CONCLUIDO
+        resultBucket:
+          type: string
+          maxLength: 200
+          example: triaige-results
+        resultObjectKey:
+          type: string
+          maxLength: 500
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/result/resultado.json
+        summaryObjectKey:
+          type: string
+          maxLength: 500
+          example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/result/resumo.txt
+        jurisprudenceUsed:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: Not Found
+        message:
+          type: string
+        path:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+          nullable: true
