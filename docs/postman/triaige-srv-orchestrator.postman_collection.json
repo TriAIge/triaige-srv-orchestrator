@@ -75,7 +75,42 @@
               "mode": "formdata",
               "formdata": [
                 { "key": "file", "type": "file", "src": "" },
-                { "key": "tipoDocumento", "type": "text", "value": "PETICAO_INICIAL" }
+                { "key": "tipoDocumento", "type": "text", "value": "PETICAO_INICIAL" },
+                { "key": "ultimoDocumento", "type": "text", "value": "false" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Registrar documento (último - dispara processamento)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.documentId) pm.collectionVariables.set(\"documentId\", body.documentId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Law-Firm-Id", "value": "{{lawFirmId}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "documents"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "tipoDocumento", "type": "text", "value": "PETICAO_INICIAL" },
+                { "key": "ultimoDocumento", "type": "text", "value": "true" }
               ]
             }
           }

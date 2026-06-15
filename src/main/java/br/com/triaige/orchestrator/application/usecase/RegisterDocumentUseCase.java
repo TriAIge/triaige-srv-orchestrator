@@ -30,10 +30,11 @@ public class RegisterDocumentUseCase {
     private final LegalDocumentRepository documentRepository;
     private final AuditService auditService;
     private final DocumentStoragePort documentStoragePort;
+    private final TriggerProcessingUseCase triggerProcessingUseCase;
 
     @Transactional
     public RegisterDocumentResponse execute(UUID sessionId, MultipartFile file, DocumentType tipoDocumento,
-                                             UUID lawFirmId, UUID correlationId) {
+                                             UUID lawFirmId, UUID correlationId, boolean ultimoDocumento) {
         TriageSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new SessionNotFoundException(sessionId));
 
@@ -76,12 +77,20 @@ public class RegisterDocumentUseCase {
         log.info("Document registered: documentId={}, sessionId={}, file={}",
                 saved.getId(), sessionId, file.getOriginalFilename());
 
+        boolean processingTriggered = false;
+        if (ultimoDocumento) {
+            triggerProcessingUseCase.execute(sessionId, lawFirmId);
+            processingTriggered = true;
+            log.info("Last document flagged: processing automatically triggered for sessionId={}", sessionId);
+        }
+
         return RegisterDocumentResponse.builder()
                 .documentId(saved.getId())
                 .sessionId(sessionId)
-                .status(DocumentStatus.REGISTRADO)
+                .status(processingTriggered ? DocumentStatus.AGUARDANDO_PRE_PROCESSAMENTO : DocumentStatus.REGISTRADO)
                 .bucket(saved.getRawBucket())
                 .objectKey(saved.getRawObjectKey())
+                .processingTriggered(processingTriggered)
                 .build();
     }
 }

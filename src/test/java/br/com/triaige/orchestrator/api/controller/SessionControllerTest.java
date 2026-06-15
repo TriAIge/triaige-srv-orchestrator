@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -161,7 +162,7 @@ class SessionControllerTest {
                 .objectKey("law-firm/11111111-1111-1111-1111-111111111111/sessions/" + sessionId + "/raw/peticao.pdf")
                 .build();
 
-        when(registerDocumentUseCase.execute(eq(sessionId), any(), any(), any(), any()))
+        when(registerDocumentUseCase.execute(eq(sessionId), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(response);
 
         MockMultipartFile file = new MockMultipartFile(
@@ -174,6 +175,39 @@ class SessionControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.documentId").value(documentId.toString()))
                 .andExpect(jsonPath("$.status").value("REGISTRADO"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/sessions/{id}/documents — ultimoDocumento=true deve disparar processamento e retornar AGUARDANDO_PRE_PROCESSAMENTO")
+    void shouldRegisterLastDocumentAndTriggerProcessing() throws Exception {
+        // Arrange
+        UUID sessionId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        RegisterDocumentResponse response = RegisterDocumentResponse.builder()
+                .documentId(documentId)
+                .sessionId(sessionId)
+                .status(DocumentStatus.AGUARDANDO_PRE_PROCESSAMENTO)
+                .bucket("triaige-raw-documents")
+                .objectKey("law-firm/11111111-1111-1111-1111-111111111111/sessions/" + sessionId + "/raw/peticao.pdf")
+                .processingTriggered(true)
+                .build();
+
+        when(registerDocumentUseCase.execute(eq(sessionId), any(), any(), any(), any(), eq(true)))
+                .thenReturn(response);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "peticao-inicial.pdf", "application/pdf", "conteudo".getBytes());
+
+        // Act & Assert
+        mockMvc.perform(multipart("/api/v1/sessions/{id}/documents", sessionId)
+                        .file(file)
+                        .param("tipoDocumento", "PETICAO_INICIAL")
+                        .param("ultimoDocumento", "true"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.documentId").value(documentId.toString()))
+                .andExpect(jsonPath("$.status").value("AGUARDANDO_PRE_PROCESSAMENTO"))
+                .andExpect(jsonPath("$.processingTriggered").value(true));
     }
 
     @Test

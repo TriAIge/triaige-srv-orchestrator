@@ -21,39 +21,36 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SessionNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleSessionNotFound(SessionNotFoundException ex,
                                                                 HttpServletRequest request) {
+        log.warn("Session not found: {} - path={}", ex.getMessage(), request.getRequestURI());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(LawFirmNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleLawFirmNotFound(LawFirmNotFoundException ex,
                                                                 HttpServletRequest request) {
+        log.warn("Law firm not found: {} - path={}", ex.getMessage(), request.getRequestURI());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(InvalidSessionStateException.class)
     public ResponseEntity<ErrorResponse> handleInvalidState(InvalidSessionStateException ex,
                                                              HttpServletRequest request) {
+        log.warn("Invalid session state: {} - path={}", ex.getMessage(), request.getRequestURI());
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(DocumentNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleDocumentNotFound(DocumentNotFoundException ex,
                                                                  HttpServletRequest request) {
+        log.warn("Document not found: {} - path={}", ex.getMessage(), request.getRequestURI());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ErrorResponse> handleBusinessRule(BusinessRuleException ex,
                                                              HttpServletRequest request) {
+        log.warn("Business rule violation: {} - path={}", ex.getMessage(), request.getRequestURI());
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(QueuePublishingException.class)
-    public ResponseEntity<ErrorResponse> handleQueuePublishing(QueuePublishingException ex,
-                                                                HttpServletRequest request) {
-        log.error("Queue publishing error: {}", ex.getMessage(), ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Erro ao publicar mensagem na fila. Tente novamente.", request, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -62,7 +59,16 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
+        log.warn("Validation error: {} - path={}", message, request.getRequestURI());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request, null);
+    }
+
+    @ExceptionHandler(QueuePublishingException.class)
+    public ResponseEntity<ErrorResponse> handleQueuePublishing(QueuePublishingException ex,
+                                                                HttpServletRequest request) {
+        log.error("Queue publishing error: {}", ex.getMessage(), ex);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Erro ao publicar mensagem na fila. Tente novamente.", request, null);
     }
 
     @ExceptionHandler(Exception.class)
