@@ -78,13 +78,16 @@ public class PreProcessingCompletedUseCase {
             LegalDocument doc = docMap.get(info.getDocumentId());
             if (doc == null) continue;
 
-            if ("PROCESSADO".equalsIgnoreCase(info.getStatus())) {
+            // Contrato do triaige-fn-ocr-normalizer: status "OK" ou "EMPTY" indicam que o
+            // arquivo normalizado foi gravado no bucket trusted (mesmo que vazio); apenas
+            // "ERROR" indica falha no pré-processamento.
+            if ("OK".equalsIgnoreCase(info.getStatus()) || "EMPTY".equalsIgnoreCase(info.getStatus())) {
                 doc.setProcessedBucket(info.getProcessedBucket());
                 doc.setProcessedObjectKey(info.getProcessedObjectKey());
                 doc.setStatus(DocumentStatus.PRE_PROCESSADO);
             } else {
                 doc.setStatus(DocumentStatus.FALHA_PRE_PROCESSAMENTO);
-                doc.setErrorMessage("Falha no pré-processamento reportada pelo serviço externo");
+                doc.setErrorMessage("Falha no pré-processamento reportada pelo serviço externo (status=" + info.getStatus() + ")");
             }
         }
         documentRepository.saveAll(docs);

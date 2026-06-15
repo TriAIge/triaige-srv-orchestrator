@@ -96,7 +96,7 @@ class PreProcessingCompletedUseCaseTest {
         docInfo.setRawObjectKey("tenant/test/raw/peticao.pdf");
         docInfo.setProcessedBucket("triaige-processed-documents");
         docInfo.setProcessedObjectKey("tenant/test/processed/peticao.txt");
-        docInfo.setStatus("PROCESSADO");
+        docInfo.setStatus("OK");
 
         request = new PreProcessingCompletedRequest();
         request.setCorrelationId(correlationId);
@@ -206,7 +206,7 @@ class PreProcessingCompletedUseCaseTest {
     @DisplayName("deve marcar sessão como FALHA quando documento falha no pré-processamento")
     void shouldMarkSessionAsFailedWhenDocumentFails() {
         // Arrange
-        request.getProcessedDocuments().get(0).setStatus("FALHA");
+        request.getProcessedDocuments().get(0).setStatus("ERROR");
         when(sessionRepository.findByIdWithDetails(sessionId)).thenReturn(Optional.of(session));
         when(documentRepository.findBySessionId(sessionId)).thenReturn(List.of(document));
         when(sessionRepository.save(any())).thenReturn(session);
