@@ -28,7 +28,7 @@ services:
     container_name: triaige-srv-orchestrator-localstack
     restart: unless-stopped
     environment:
-      - SERVICES=sqs,s3
+      - SERVICES=sqs,s3,ses
       - DEFAULT_REGION=us-east-1
       - AWS_DEFAULT_REGION=us-east-1
       - LOCALSTACK_HOST=localhost

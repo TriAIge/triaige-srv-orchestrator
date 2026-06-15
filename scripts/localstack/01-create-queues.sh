@@ -44,4 +44,11 @@ EOF
 awslocal s3 cp /tmp/normalized.txt \
   s3://triaige-processed-documents/tenant-001/sess-2026-000001/doc-001/normalized.txt
 
+echo "Verifying SES email identities (triaige-srv-notification)..."
+
+# LocalStack SES é um simulador: e-mails enviados não chegam a caixas de entrada reais,
+# apenas ficam disponíveis para inspeção via API/logs do LocalStack.
+awslocal ses verify-email-identity --email-address no-reply@triaige.com
+awslocal ses verify-email-identity --email-address miguel.asilva@sptech.school
+
 echo "LocalStack setup complete."

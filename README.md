@@ -67,24 +67,14 @@ O Orquestrador **não lê PDF**, **não faz OCR**, **não chama Gemini diretamen
 
 | Perfil | Persistência | Quando usar |
 |--------|---------------|-------------|
-| `dev` (padrão) | H2 em arquivo (`./data/triaige-srv-orchestrator`), schema gerado automaticamente (`ddl-auto: update`), Flyway desabilitado | Desenvolvimento local, sem precisar subir MySQL |
-| `ho` | MySQL (`triaige_srv_orchestrator`) local via Docker Compose, Flyway habilitado | Homologação / teste local do schema com MySQL real, sem depender de infraestrutura externa |
-| `prod` | MySQL (`triaige_srv_orchestrator`) na AWS, Flyway habilitado | Ambiente de produção (infraestrutura provisionada via Terraform/Ansible) |
+| `ho` (padrão) | MySQL (`triaige_srv_orchestrator`) local via Docker Compose, Flyway habilitado | Desenvolvimento e homologação local com MySQL real |
 
-O perfil ativo é definido pela variável `SPRING_PROFILES_ACTIVE` (padrão `dev`).
+O perfil ativo é definido pela variável `SPRING_PROFILES_ACTIVE` (padrão `ho`).
 
 ```bash
-# dev (H2 local)
-mvn spring-boot:run
-
 # ho (MySQL local, ex: via docker compose up mysql)
-SPRING_PROFILES_ACTIVE=ho mvn spring-boot:run
-
-# prod (MySQL na AWS — requer DB_URL/DB_USERNAME/DB_PASSWORD via config externa)
-SPRING_PROFILES_ACTIVE=prod mvn spring-boot:run
+mvn spring-boot:run
 ```
-
-Console do H2 disponível em `http://localhost:8080/h2-console` no perfil `dev`.
 
 ---
 
@@ -102,16 +92,11 @@ spring:
 ```
 
 - O `triaige-srv-orchestrator-config` contém **um arquivo por ambiente**
-  (`application-ho.yml`, `application-prod.yml`), seguindo a mesma convenção
-  de profiles do Spring Boot — não um único arquivo combinado.
-- O import é **opcional** — em `dev` e `ho`, sem o arquivo do profile presente,
-  os defaults de `application-dev.yml` (H2 + LocalStack) ou `application-ho.yml`
-  (MySQL local via docker compose) continuam valendo normalmente.
-- Em `prod`, o Ansible gera `application-prod.yml` a partir do template
-  `application-prod.yml.example` (com os valores reais de saída do Terraform) e
-  o copia para o caminho indicado por `CONFIG_REPO_PATH` no servidor. O perfil
-  `prod` não tem credenciais default — sem esse arquivo (ou as variáveis
-  `DB_URL`/`DB_USERNAME`/`DB_PASSWORD` equivalentes), a aplicação não sobe.
+  (ex: `application-ho.yml`), seguindo a mesma convenção de profiles do
+  Spring Boot — não um único arquivo combinado.
+- O import é **opcional** — sem o arquivo do profile presente, os defaults de
+  `application-ho.yml` (MySQL local via docker compose) continuam valendo
+  normalmente.
 
 Veja detalhes no README do [`triaige-srv-orchestrator-config`](../triaige-srv-orchestrator-config/README.md).
 
@@ -134,7 +119,7 @@ O script `scripts/localstack/01-create-queues.sh` é executado automaticamente p
 ### 2. Rodar o serviço
 
 ```bash
-# Desenvolvimento
+# Opção A — Maven (perfil ho, requer MySQL via `docker compose up mysql -d`)
 export AWS_SQS_ENDPOINT=http://localhost:4566
 export AWS_S3_ENDPOINT=http://localhost:4566
 export RAW_DOCUMENTS_BUCKET=triaige-raw-documents
@@ -188,11 +173,11 @@ para encadear as próximas chamadas sem copiar/colar valores manualmente.
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
-| `SPRING_PROFILES_ACTIVE` | `dev` | Perfil ativo: `dev` (H2), `ho` (MySQL local) ou `prod` (MySQL na AWS) |
-| `CONFIG_REPO_PATH` | `../triaige-srv-orchestrator-config/` | Caminho do repositório de [configuração externa](#configuração-externa-segredos) com os segredos do ambiente (usado em `prod`) |
-| `DB_URL` | depende do perfil | JDBC URL do banco (H2 em `dev`, MySQL em `ho`/`prod`) |
-| `DB_USERNAME` | `sa` (dev) / `triaige` (ho) / _sem default_ (prod) | Usuário do banco |
-| `DB_PASSWORD` | _(vazio)_ (dev) / `triaige` (ho) / _sem default_ (prod) | Senha do banco |
+| `SPRING_PROFILES_ACTIVE` | `ho` | Perfil ativo: `ho` (MySQL local) |
+| `CONFIG_REPO_PATH` | `../triaige-srv-orchestrator-config/` | Caminho do repositório de [configuração externa](#configuração-externa-segredos) com os segredos do ambiente (opcional) |
+| `DB_URL` | `jdbc:mysql://localhost:3306/triaige_srv_orchestrator?...` | JDBC URL do banco MySQL |
+| `DB_USERNAME` | `triaige` | Usuário do banco |
+| `DB_PASSWORD` | `triaige` | Senha do banco |
 | `AWS_REGION` | `us-east-1` | Região AWS |
 | `AWS_SQS_ENDPOINT` | _(vazio = AWS real)_ | Endpoint customizado do SQS (LocalStack) |
 | `AWS_S3_ENDPOINT` | _(vazio = AWS real)_ | Endpoint customizado do S3 (LocalStack) |
