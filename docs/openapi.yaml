@@ -72,6 +72,14 @@ paths:
                   description: Arquivo do documento (ex. PDF)
                 tipoDocumento:
                   $ref: '#/components/schemas/DocumentType'
+                ultimoDocumento:
+                  type: boolean
+                  default: false
+                  description: >-
+                    Indica que este é o último documento da sessão. Quando true,
+                    o pré-processamento (fila triaige-docs-preprocessing) é
+                    disparado automaticamente, equivalente a chamar
+                    POST /api/v1/sessions/{sessionId}/process.
       responses:
         '201':
           description: Documento registrado e armazenado com sucesso
@@ -419,6 +427,11 @@ components:
         objectKey:
           type: string
           example: law-firm/11111111-1111-1111-1111-111111111111/sessions/<sessionId>/raw/peticao-inicial.pdf
+        processingTriggered:
+          type: boolean
+          description: >-
+            true quando ultimoDocumento=true e o pré-processamento da sessão
+            foi disparado automaticamente neste request.
 
     SessionDetailResponse:
       type: object
