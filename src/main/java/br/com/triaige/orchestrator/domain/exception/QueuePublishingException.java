@@ -1,7 +1,11 @@
 package br.com.triaige.orchestrator.domain.exception;
 
-public class QueuePublishingException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class QueuePublishingException extends OrchestratorException {
+
     public QueuePublishingException(String queueUrl, Throwable cause) {
-        super("Falha ao publicar mensagem na fila: " + queueUrl, cause);
+        super("QUEUE_PUBLISH_ERROR", HttpStatus.INTERNAL_SERVER_ERROR,
+                "Falha ao publicar mensagem na fila: " + queueUrl, cause);
     }
 }

@@ -28,6 +28,10 @@ public class TriageSession {
     @JoinColumn(name = "law_firm_id", nullable = false)
     private LawFirm lawFirm;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "api_credential_id")
+    private ApiCredential apiCredential;
+
     @Column(name = "protocolo", nullable = false, unique = true, length = 30)
     private String protocolo;
 
@@ -41,15 +45,9 @@ public class TriageSession {
     @OneToOne(mappedBy = "session", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private LegalCase legalCase;
 
-    @OneToOne(mappedBy = "session", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private NotificationRecipient recipient;
-
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<LegalDocument> documents = new ArrayList<>();
-
-    @OneToOne(mappedBy = "session", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private TriageResult result;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -67,24 +65,6 @@ public class TriageSession {
     }
 
     public boolean canReceiveDocuments() {
-        return this.status == SessionStatus.ABERTA;
-    }
-
-    public boolean canBeProcessed() {
-        return this.status == SessionStatus.ABERTA
-                && this.documents != null
-                && !this.documents.isEmpty();
-    }
-
-    public boolean isCompleted() {
-        return this.status == SessionStatus.CONCLUIDA;
-    }
-
-    public boolean isCancelled() {
-        return this.status == SessionStatus.CANCELADA;
-    }
-
-    public boolean isFailed() {
-        return this.status == SessionStatus.FALHA;
+        return this.status == SessionStatus.RECEIVING_DOCUMENTS;
     }
 }

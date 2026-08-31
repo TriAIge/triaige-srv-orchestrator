@@ -1,0 +1,18 @@
+# Override para apontar o triaige-srv-orchestrator para os recursos AWS reais (S3/SQS)
+# provisionados via Terraform (triaige-infra), mantendo MySQL 100% local (schema próprio
+# deste serviço, migrado do zero a cada subida do compose). Mesma convenção do override do
+# triaige-srv-mcp-ai — ver esse arquivo para o restante do fluxo E2E compartilhado.
+#
+# Reversível: remova este arquivo (ou rode com `docker compose -f docker-compose.yml up`)
+# para voltar ao modo 100% local (LocalStack).
+services:
+  srv-orchestrator:
+    environment:
+      AWS_SQS_ENDPOINT: ""
+      AWS_S3_ENDPOINT: ""
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+      RAW_DOCUMENTS_BUCKET: bucket-triaige-raw-certificacoes-20260825025311
+      DOCS_RECEIVED_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/391283584656/triaige-docs-received
+      DOCS_PREPROCESSING_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/391283584656/triaige-docs-preprocessing

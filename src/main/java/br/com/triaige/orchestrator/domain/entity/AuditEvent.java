@@ -1,5 +1,6 @@
 package br.com.triaige.orchestrator.domain.entity;
 
+import br.com.triaige.orchestrator.domain.converter.EventTypeConverter;
 import br.com.triaige.orchestrator.domain.enums.EventType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,10 +10,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "audit_events", indexes = {
-        @Index(name = "idx_audit_session_id", columnList = "session_id"),
-        @Index(name = "idx_audit_correlation_id", columnList = "correlation_id")
-})
+@Table(name = "audit_events")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,13 +22,16 @@ public class AuditEvent {
     @Column(name = "id", nullable = false, updatable = false, columnDefinition = "CHAR(36)")
     private UUID id;
 
-    @Column(name = "session_id", nullable = false, columnDefinition = "CHAR(36)")
+    @Column(name = "session_id", columnDefinition = "CHAR(36)")
     private UUID sessionId;
+
+    @Column(name = "law_firm_id", columnDefinition = "CHAR(36)")
+    private UUID lawFirmId;
 
     @Column(name = "correlation_id", columnDefinition = "CHAR(36)")
     private UUID correlationId;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = EventTypeConverter.class)
     @Column(name = "event_type", nullable = false, length = 50)
     private EventType eventType;
 

@@ -3,7 +3,6 @@ FROM maven:3.9.6-eclipse-temurin-21 AS builder
 WORKDIR /app
 
 COPY pom.xml .
-# Baixa as dependências em uma camada cacheável
 RUN mvn dependency:go-offline -q
 
 COPY src ./src
@@ -13,7 +12,6 @@ RUN mvn clean package -DskipTests -q
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Usuário não-root por segurança
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 USER appuser
 

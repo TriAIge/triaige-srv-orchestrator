@@ -1,4 +1,9 @@
--- TriAIge Orchestrator final schema
+-- Modelo de dados completo do TriAIge (fonte de verdade: script.sql).
+-- O Orchestrator (Fase 1) só lê/escreve o subconjunto de tabelas descrito na
+-- spec (law_firms, api_credentials, protocol_sequences, triage_sessions,
+-- legal_cases, legal_documents, processing_steps, audit_events), mas o
+-- schema completo é criado aqui para preservar a integridade referencial e
+-- permitir que fases futuras (MCP, IA, notificação) evoluam sobre a mesma base.
 
 CREATE TABLE law_firms (
     id              CHAR(36)     NOT NULL,
@@ -17,7 +22,7 @@ CREATE TABLE law_firms (
 
 CREATE TABLE law_firm_contacts (
     id                 CHAR(36)     NOT NULL,
-    law_firm_id         CHAR(36)     NOT NULL,
+    law_firm_id        CHAR(36)     NOT NULL,
     nome               VARCHAR(200) NOT NULL,
     email              VARCHAR(200),
     telefone           VARCHAR(30),
@@ -35,7 +40,7 @@ CREATE TABLE law_firm_contacts (
 
 CREATE TABLE api_credentials (
     id              CHAR(36)     NOT NULL,
-    law_firm_id      CHAR(36)     NOT NULL,
+    law_firm_id     CHAR(36)     NOT NULL,
     name            VARCHAR(100) NOT NULL,
     token_hash      VARCHAR(255) NOT NULL,
     status          VARCHAR(30)  NOT NULL,
@@ -61,8 +66,8 @@ CREATE TABLE protocol_sequences (
 
 CREATE TABLE triage_sessions (
     id                CHAR(36)     NOT NULL,
-    law_firm_id        CHAR(36)     NOT NULL,
-    api_credential_id  CHAR(36),
+    law_firm_id       CHAR(36)     NOT NULL,
+    api_credential_id CHAR(36),
     protocolo         VARCHAR(30)  NOT NULL,
     correlation_id    CHAR(36)     NOT NULL,
     status            VARCHAR(40)  NOT NULL,
@@ -99,15 +104,15 @@ CREATE TABLE legal_cases (
 
 
 CREATE TABLE notification_recipients (
-    id                  CHAR(36)     NOT NULL,
-    session_id           CHAR(36)     NOT NULL,
-    contact_id           CHAR(36),
-    nome                 VARCHAR(200) NOT NULL,
-    email                VARCHAR(200),
-    telefone             VARCHAR(30),
-    canal_preferencial   VARCHAR(20)  NOT NULL,
+    id                 CHAR(36)     NOT NULL,
+    session_id         CHAR(36)     NOT NULL,
+    contact_id         CHAR(36),
+    nome               VARCHAR(200) NOT NULL,
+    email              VARCHAR(200),
+    telefone           VARCHAR(30),
+    canal_preferencial VARCHAR(20)  NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_notification_recipients_session_id (session_id),
+    INDEX idx_notification_recipients_session_id (session_id),
     INDEX idx_notification_recipients_contact_id (contact_id),
     CONSTRAINT fk_notification_recipients_session FOREIGN KEY (session_id)
         REFERENCES triage_sessions(id) ON DELETE CASCADE,
@@ -119,12 +124,16 @@ CREATE TABLE notification_recipients (
 CREATE TABLE legal_documents (
     id                     CHAR(36)     NOT NULL,
     session_id             CHAR(36)     NOT NULL,
+    attachment_group_id    CHAR(36)     NOT NULL,
+    part_number            INT          NOT NULL DEFAULT 1,
     nome_arquivo_original  VARCHAR(255) NOT NULL,
     tipo_documento         VARCHAR(30)  NOT NULL,
     content_type           VARCHAR(100) NOT NULL,
     tamanho_bytes          BIGINT,
     raw_bucket             VARCHAR(200) NOT NULL,
     raw_object_key         VARCHAR(500) NOT NULL,
+    raw_deleted_at         DATETIME(6),
+    retention_expires_at   DATETIME(6),
     processed_bucket       VARCHAR(200),
     processed_object_key   VARCHAR(500),
     status                 VARCHAR(40)  NOT NULL,
@@ -133,6 +142,7 @@ CREATE TABLE legal_documents (
     updated_at             DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
     INDEX idx_legal_documents_session_id (session_id),
+    INDEX idx_legal_documents_attachment_group_id (attachment_group_id),
     INDEX idx_legal_documents_status (status),
     INDEX idx_legal_documents_tipo_documento (tipo_documento),
     CONSTRAINT fk_legal_documents_session FOREIGN KEY (session_id)
@@ -184,34 +194,36 @@ CREATE TABLE ai_tool_calls (
 
 
 CREATE TABLE triage_results (
-    id                   CHAR(36)     NOT NULL,
-    session_id           CHAR(36)     NOT NULL,
-    result_bucket        VARCHAR(200) NOT NULL,
-    result_object_key    VARCHAR(500) NOT NULL,
-    summary_object_key   VARCHAR(500),
-    jurisprudence_used   TINYINT(1)   NOT NULL DEFAULT 0,
-    created_at           DATETIME(6)  NOT NULL,
-    updated_at           DATETIME(6)  NOT NULL,
+    id                    CHAR(36)     NOT NULL,
+    session_id            CHAR(36)     NOT NULL,
+    result_bucket         VARCHAR(200) NOT NULL,
+    result_object_key     VARCHAR(500) NOT NULL,
+    summary_object_key    VARCHAR(500),
+    jurisprudence_call_id CHAR(36),
+    created_at            DATETIME(6)  NOT NULL,
+    updated_at            DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_triage_results_session_id (session_id),
     CONSTRAINT fk_triage_results_session FOREIGN KEY (session_id)
-        REFERENCES triage_sessions(id) ON DELETE CASCADE
+        REFERENCES triage_sessions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_triage_results_jurisprudence_call FOREIGN KEY (jurisprudence_call_id)
+        REFERENCES ai_tool_calls(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE notification_deliveries (
-    id                    CHAR(36)     NOT NULL,
-    session_id             CHAR(36)     NOT NULL,
-    recipient_id           CHAR(36)     NOT NULL,
-    canal                  VARCHAR(20)  NOT NULL,
-    destino                VARCHAR(200) NOT NULL,
-    status                 VARCHAR(40)  NOT NULL,
-    provider               VARCHAR(50),
-    provider_message_id    VARCHAR(200),
-    error_message          VARCHAR(1000),
-    sent_at                DATETIME(6),
-    created_at             DATETIME(6)  NOT NULL,
-    updated_at             DATETIME(6)  NOT NULL,
+    id                   CHAR(36)     NOT NULL,
+    session_id           CHAR(36)     NOT NULL,
+    recipient_id         CHAR(36)     NOT NULL,
+    canal                VARCHAR(20)  NOT NULL,
+    destino              VARCHAR(200) NOT NULL,
+    status               VARCHAR(40)  NOT NULL,
+    provider             VARCHAR(50),
+    provider_message_id  VARCHAR(200),
+    error_message        VARCHAR(1000),
+    sent_at              DATETIME(6),
+    created_at           DATETIME(6)  NOT NULL,
+    updated_at           DATETIME(6)  NOT NULL,
     PRIMARY KEY (id),
     INDEX idx_notification_deliveries_session_id (session_id),
     INDEX idx_notification_deliveries_recipient_id (recipient_id),
@@ -227,7 +239,7 @@ CREATE TABLE notification_deliveries (
 CREATE TABLE audit_events (
     id              CHAR(36)     NOT NULL,
     session_id      CHAR(36),
-    law_firm_id      CHAR(36),
+    law_firm_id     CHAR(36),
     correlation_id  CHAR(36),
     event_type      VARCHAR(50)  NOT NULL,
     description     VARCHAR(500) NOT NULL,

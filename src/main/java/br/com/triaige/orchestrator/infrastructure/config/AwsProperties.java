@@ -14,14 +14,22 @@ public class AwsProperties {
     @Data
     public static class Sqs {
         private String endpoint;
+        private String docsReceivedQueueUrl;
         private String docsPreprocessingQueueUrl;
-        private String resultsReadyQueueUrl;
+        private Q1Consumer q1Consumer = new Q1Consumer();
+
+        @Data
+        public static class Q1Consumer {
+            private boolean enabled = true;
+            private long pollIntervalMs = 5000;
+            private int waitTimeSeconds = 10;
+            private int maxMessages = 10;
+        }
     }
 
     @Data
     public static class S3 {
         private String endpoint;
         private String rawDocumentsBucket;
-        private String curatedResultsBucket;
     }
 }

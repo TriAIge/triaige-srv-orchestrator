@@ -1,100 +1,69 @@
 package br.com.triaige.orchestrator.infrastructure.s3;
 
 import br.com.triaige.orchestrator.domain.exception.DocumentStorageException;
-import br.com.triaige.orchestrator.infrastructure.config.AwsProperties;
+import br.com.triaige.orchestrator.infrastructure.config.OrchestratorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.time.Duration;
+import java.util.Optional;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class S3DocumentStorageService implements DocumentStoragePort {
+public class S3DocumentStorageService {
 
     private final S3Client s3Client;
-    private final AwsProperties awsProperties;
+    private final S3Presigner s3Presigner;
+    private final OrchestratorProperties orchestratorProperties;
 
-    @Override
-    public StoredDocument upload(UUID lawFirmId, UUID sessionId, MultipartFile file) {
-        String bucket = awsProperties.getS3().getRawDocumentsBucket();
-        String objectKey = buildObjectKey(lawFirmId, sessionId, file.getOriginalFilename());
-        String contentType = file.getContentType() != null
-                ? file.getContentType()
-                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
-
+    public PresignedPutObjectRequest presignPutObject(String bucket, String objectKey, String contentType) {
         try {
-            PutObjectRequest request = PutObjectRequest.builder()
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucket)
                     .key(objectKey)
                     .contentType(contentType)
-                    .contentLength(file.getSize())
                     .build();
 
-            s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
-
-            log.info("Document uploaded to S3: bucket={}, objectKey={}, size={}",
-                    bucket, objectKey, file.getSize());
-
-            return StoredDocument.builder()
-                    .bucket(bucket)
-                    .objectKey(objectKey)
-                    .contentType(contentType)
-                    .sizeBytes(file.getSize())
+            PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(
+                            orchestratorProperties.getPresign().getUploadUrlTtlMinutes()))
+                    .putObjectRequest(putObjectRequest)
                     .build();
 
-        } catch (IOException | software.amazon.awssdk.core.exception.SdkException e) {
-            log.error("Failed to upload document to S3: bucket={}, objectKey={}", bucket, objectKey, e);
-            throw new DocumentStorageException("Falha ao enviar documento para o bucket: " + bucket, e);
+            return s3Presigner.presignPutObject(presignRequest);
+        } catch (S3Exception e) {
+            log.error("Failed to presign PUT URL: bucket={}, objectKey={}", bucket, objectKey, e);
+            throw new DocumentStorageException("Falha ao gerar URL pré-assinada para upload", e);
         }
     }
 
-    @Override
-    public StoredDocument storeResult(UUID lawFirmId, UUID sessionId, String jsonContent) {
-        String bucket = awsProperties.getS3().getCuratedResultsBucket();
-        String objectKey = buildResultObjectKey(lawFirmId, sessionId);
-        byte[] content = jsonContent.getBytes(StandardCharsets.UTF_8);
-
+    /** Retorna o tamanho do objeto se ele existir no S3, ou empty caso contrário. */
+    public Optional<Long> headObject(String bucket, String objectKey) {
         try {
-            PutObjectRequest request = PutObjectRequest.builder()
+            HeadObjectResponse response = s3Client.headObject(HeadObjectRequest.builder()
                     .bucket(bucket)
                     .key(objectKey)
-                    .contentType(MediaType.APPLICATION_JSON_VALUE)
-                    .contentLength((long) content.length)
-                    .build();
-
-            s3Client.putObject(request, RequestBody.fromBytes(content));
-
-            log.info("Analysis result stored to S3: bucket={}, objectKey={}, size={}",
-                    bucket, objectKey, content.length);
-
-            return StoredDocument.builder()
-                    .bucket(bucket)
-                    .objectKey(objectKey)
-                    .contentType(MediaType.APPLICATION_JSON_VALUE)
-                    .sizeBytes(content.length)
-                    .build();
-
-        } catch (software.amazon.awssdk.core.exception.SdkException e) {
-            log.error("Failed to store analysis result to S3: bucket={}, objectKey={}", bucket, objectKey, e);
-            throw new DocumentStorageException("Falha ao salvar resultado da análise no bucket: " + bucket, e);
+                    .build());
+            return Optional.of(response.contentLength());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return Optional.empty();
+            }
+            log.error("Failed to HeadObject: bucket={}, objectKey={}", bucket, objectKey, e);
+            throw new DocumentStorageException("Falha ao verificar existência do objeto no S3", e);
         }
-    }
-
-    private String buildObjectKey(UUID lawFirmId, UUID sessionId, String originalFilename) {
-        String safeName = originalFilename != null ? originalFilename : "documento";
-        return "law-firm/%s/sessions/%s/raw/%s-%s".formatted(lawFirmId, sessionId, UUID.randomUUID(), safeName);
-    }
-
-    private String buildResultObjectKey(UUID lawFirmId, UUID sessionId) {
-        return "law-firm/%s/sessions/%s/curated/%s-result.json".formatted(lawFirmId, sessionId, UUID.randomUUID());
     }
 }

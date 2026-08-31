@@ -1,112 +1,89 @@
 package br.com.triaige.orchestrator.api.controller;
 
 import br.com.triaige.orchestrator.api.dto.request.CreateSessionRequest;
-import br.com.triaige.orchestrator.api.dto.response.AuditEventResponse;
+import br.com.triaige.orchestrator.api.dto.request.PresignDocumentRequest;
+import br.com.triaige.orchestrator.api.dto.response.CompleteDocumentResponse;
 import br.com.triaige.orchestrator.api.dto.response.CreateSessionResponse;
-import br.com.triaige.orchestrator.api.dto.response.RegisterDocumentResponse;
+import br.com.triaige.orchestrator.api.dto.response.FinalizeSessionResponse;
+import br.com.triaige.orchestrator.api.dto.response.PresignDocumentResponse;
 import br.com.triaige.orchestrator.api.dto.response.SessionDetailResponse;
-import br.com.triaige.orchestrator.application.usecase.*;
-import br.com.triaige.orchestrator.domain.enums.DocumentType;
-import br.com.triaige.orchestrator.shared.util.CorrelationIdUtil;
+import br.com.triaige.orchestrator.application.service.IdempotencyService;
+import br.com.triaige.orchestrator.application.usecase.CompleteDocumentUploadUseCase;
+import br.com.triaige.orchestrator.application.usecase.CreateSessionUseCase;
+import br.com.triaige.orchestrator.application.usecase.FinalizeSessionUseCase;
+import br.com.triaige.orchestrator.application.usecase.GetSessionStatusUseCase;
+import br.com.triaige.orchestrator.application.usecase.PresignDocumentUploadUseCase;
+import br.com.triaige.orchestrator.infrastructure.security.ApiCredentialAuthFilter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
-@Slf4j
 @RestController
-@RequestMapping("/api/v1/sessions")
+@RequestMapping("${orchestrator.base-path}/sessions")
 @RequiredArgsConstructor
 public class SessionController {
 
     private final CreateSessionUseCase createSessionUseCase;
-    private final RegisterDocumentUseCase registerDocumentUseCase;
-    private final TriggerProcessingUseCase triggerProcessingUseCase;
+    private final PresignDocumentUploadUseCase presignDocumentUploadUseCase;
+    private final CompleteDocumentUploadUseCase completeDocumentUploadUseCase;
+    private final FinalizeSessionUseCase finalizeSessionUseCase;
     private final GetSessionStatusUseCase getSessionStatusUseCase;
+    private final IdempotencyService idempotencyService;
 
     @PostMapping
     public ResponseEntity<CreateSessionResponse> createSession(
             @Valid @RequestBody CreateSessionRequest request,
-            @RequestHeader(value = "X-Correlation-Id", required = false) String correlationIdHeader,
-            @RequestHeader(value = "X-Law-Firm-Id", required = false) String lawFirmIdHeader) {
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestAttribute(ApiCredentialAuthFilter.LAW_FIRM_ID_ATTRIBUTE) UUID lawFirmId,
+            @RequestAttribute(ApiCredentialAuthFilter.API_CREDENTIAL_ID_ATTRIBUTE) UUID apiCredentialId) {
 
-        UUID correlationId = CorrelationIdUtil.resolve(correlationIdHeader);
+        return idempotencyService.execute(idempotencyKey, "POST /sessions", request, CreateSessionResponse.class,
+                () -> ResponseEntity.status(HttpStatus.CREATED)
+                        .body(createSessionUseCase.execute(request, lawFirmId, apiCredentialId)));
+    }
 
-        // O header de escritório sobrescreve o body, se presente
-        UUID lawFirmIdFromHeader = parseLawFirmId(lawFirmIdHeader);
-        if (lawFirmIdFromHeader != null) {
-            request.setLawFirmId(lawFirmIdFromHeader);
-        }
+    @PostMapping("/{sessionId}/documents/presign")
+    public ResponseEntity<PresignDocumentResponse> presignDocument(
+            @PathVariable UUID sessionId,
+            @Valid @RequestBody PresignDocumentRequest request,
+            @RequestAttribute(ApiCredentialAuthFilter.LAW_FIRM_ID_ATTRIBUTE) UUID lawFirmId) {
 
-        log.info("POST /api/v1/sessions - lawFirmId={}, correlationId={}", request.getLawFirmId(), correlationId);
-
-        CreateSessionResponse response = createSessionUseCase.execute(request, correlationId);
+        PresignDocumentResponse response = presignDocumentUploadUseCase.execute(sessionId, lawFirmId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PostMapping(value = "/{sessionId}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<RegisterDocumentResponse> registerDocument(
+    @PostMapping("/{sessionId}/documents/{documentId}/complete")
+    public ResponseEntity<CompleteDocumentResponse> completeDocument(
             @PathVariable UUID sessionId,
-            @RequestPart("file") MultipartFile file,
-            @RequestParam("tipoDocumento") DocumentType tipoDocumento,
-            @RequestParam(value = "ultimoDocumento", required = false, defaultValue = "false") boolean ultimoDocumento,
-            @RequestHeader(value = "X-Correlation-Id", required = false) String correlationIdHeader,
-            @RequestHeader(value = "X-Law-Firm-Id", required = false) String lawFirmIdHeader) {
+            @PathVariable UUID documentId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestAttribute(ApiCredentialAuthFilter.LAW_FIRM_ID_ATTRIBUTE) UUID lawFirmId) {
 
-        UUID correlationId = CorrelationIdUtil.resolve(correlationIdHeader);
-
-        log.info("POST /api/v1/sessions/{}/documents - correlationId={}, ultimoDocumento={}",
-                sessionId, correlationId, ultimoDocumento);
-
-        RegisterDocumentResponse response = registerDocumentUseCase.execute(
-                sessionId, file, tipoDocumento, parseLawFirmId(lawFirmIdHeader), correlationId, ultimoDocumento);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return idempotencyService.execute(idempotencyKey, "POST /sessions/{sessionId}/documents/{documentId}/complete",
+                new Object[]{sessionId, documentId}, CompleteDocumentResponse.class,
+                () -> ResponseEntity.ok(completeDocumentUploadUseCase.execute(sessionId, documentId, lawFirmId)));
     }
 
-    @PostMapping("/{sessionId}/process")
-    public ResponseEntity<Void> triggerProcessing(
+    @PostMapping("/{sessionId}/finalize")
+    public ResponseEntity<FinalizeSessionResponse> finalizeSession(
             @PathVariable UUID sessionId,
-            @RequestHeader(value = "X-Law-Firm-Id", required = false) String lawFirmIdHeader) {
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestAttribute(ApiCredentialAuthFilter.LAW_FIRM_ID_ATTRIBUTE) UUID lawFirmId) {
 
-        log.info("POST /api/v1/sessions/{}/process", sessionId);
-
-        triggerProcessingUseCase.execute(sessionId, parseLawFirmId(lawFirmIdHeader));
-        return ResponseEntity.accepted().build();
+        return idempotencyService.execute(idempotencyKey, "POST /sessions/{sessionId}/finalize",
+                sessionId, FinalizeSessionResponse.class,
+                () -> ResponseEntity.ok(finalizeSessionUseCase.execute(sessionId, lawFirmId)));
     }
 
     @GetMapping("/{sessionId}")
     public ResponseEntity<SessionDetailResponse> getSession(
             @PathVariable UUID sessionId,
-            @RequestHeader(value = "X-Law-Firm-Id", required = false) String lawFirmIdHeader) {
+            @RequestAttribute(ApiCredentialAuthFilter.LAW_FIRM_ID_ATTRIBUTE) UUID lawFirmId) {
 
-        SessionDetailResponse response = getSessionStatusUseCase.getSession(sessionId, parseLawFirmId(lawFirmIdHeader));
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/{sessionId}/events")
-    public ResponseEntity<List<AuditEventResponse>> getEvents(
-            @PathVariable UUID sessionId,
-            @RequestHeader(value = "X-Law-Firm-Id", required = false) String lawFirmIdHeader) {
-
-        List<AuditEventResponse> events = getSessionStatusUseCase.getEvents(sessionId, parseLawFirmId(lawFirmIdHeader));
-        return ResponseEntity.ok(events);
-    }
-
-    private static UUID parseLawFirmId(String headerValue) {
-        if (headerValue == null || headerValue.isBlank()) {
-            return null;
-        }
-        try {
-            return UUID.fromString(headerValue.trim());
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
+        return ResponseEntity.ok(getSessionStatusUseCase.execute(sessionId, lawFirmId));
     }
 }

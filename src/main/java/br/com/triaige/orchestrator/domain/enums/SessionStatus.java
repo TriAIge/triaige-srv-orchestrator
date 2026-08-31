@@ -1,12 +1,11 @@
 package br.com.triaige.orchestrator.domain.enums;
 
+/** COMPLETED/PARTIALLY_COMPLETED/FAILED são setados por ApplyMcpResultUseCase a partir do callback do triaige-srv-mcp-ai (spec da Fase 2, seção 6). */
 public enum SessionStatus {
-    ABERTA,
-    AGUARDANDO_PRE_PROCESSAMENTO,
-    EM_PRE_PROCESSAMENTO,
-    AGUARDANDO_PROCESSAMENTO_IA,
-    EM_PROCESSAMENTO_IA,
-    CONCLUIDA,
-    FALHA,
-    CANCELADA
+    RECEIVING_DOCUMENTS,
+    QUEUED_FOR_PROCESSING,
+    CANCELLED,
+    COMPLETED,
+    PARTIALLY_COMPLETED,
+    FAILED
 }

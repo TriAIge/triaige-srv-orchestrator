@@ -1,14 +1,18 @@
 package br.com.triaige.orchestrator.infrastructure.persistence;
 
 import br.com.triaige.orchestrator.domain.entity.LegalDocument;
+import br.com.triaige.orchestrator.domain.enums.DocumentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-@Repository
 public interface LegalDocumentRepository extends JpaRepository<LegalDocument, UUID> {
+
+    Optional<LegalDocument> findByIdAndSessionId(UUID id, UUID sessionId);
+
+    List<LegalDocument> findBySessionIdAndStatus(UUID sessionId, DocumentStatus status);
+
     List<LegalDocument> findBySessionId(UUID sessionId);
-    boolean existsBySessionId(UUID sessionId);
 }

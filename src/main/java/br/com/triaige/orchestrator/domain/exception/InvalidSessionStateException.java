@@ -1,17 +1,10 @@
 package br.com.triaige.orchestrator.domain.exception;
 
-import br.com.triaige.orchestrator.domain.enums.SessionStatus;
+import org.springframework.http.HttpStatus;
 
-import java.util.UUID;
-
-public class InvalidSessionStateException extends RuntimeException {
-
-    public InvalidSessionStateException(UUID sessionId, SessionStatus currentStatus, String operation) {
-        super(String.format("Sessão %s não pode executar a operação '%s' no status '%s'",
-                sessionId, operation, currentStatus));
-    }
+public class InvalidSessionStateException extends OrchestratorException {
 
     public InvalidSessionStateException(String message) {
-        super(message);
+        super("INVALID_SESSION_STATE", HttpStatus.CONFLICT, message);
     }
 }

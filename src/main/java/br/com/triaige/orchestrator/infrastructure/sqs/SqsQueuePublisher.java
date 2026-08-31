@@ -22,9 +22,6 @@ public class SqsQueuePublisher implements QueuePublisher {
         try {
             String messageBody = objectMapper.writeValueAsString(payload);
 
-            log.debug("Publishing message to queue: {}, body size: {} chars",
-                    queueUrl, messageBody.length());
-
             SendMessageRequest request = SendMessageRequest.builder()
                     .queueUrl(queueUrl)
                     .messageBody(messageBody)
@@ -32,9 +29,7 @@ public class SqsQueuePublisher implements QueuePublisher {
 
             SendMessageResponse response = sqsClient.sendMessage(request);
 
-            log.info("Message published successfully to queue: {}, messageId: {}",
-                    queueUrl, response.messageId());
-
+            log.info("Message published: queue={}, messageId={}", queueUrl, response.messageId());
         } catch (Exception e) {
             log.error("Failed to publish message to queue: {}", queueUrl, e);
             throw new QueuePublishingException(queueUrl, e);

@@ -1,7 +1,5 @@
 package br.com.triaige.orchestrator.domain.entity;
 
-import br.com.triaige.orchestrator.domain.enums.CaseType;
-import br.com.triaige.orchestrator.domain.enums.LegalArea;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -30,13 +28,11 @@ public class LegalCase {
     @Column(name = "titulo", nullable = false, length = 255)
     private String titulo;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "area_juridica", nullable = false, length = 30)
-    private LegalArea areaJuridica;
+    private String areaJuridica;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "tipo_caso", nullable = false, length = 50)
-    private CaseType tipoCaso;
+    private String tipoCaso;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

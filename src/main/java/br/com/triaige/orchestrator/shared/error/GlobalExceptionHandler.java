@@ -1,56 +1,33 @@
 package br.com.triaige.orchestrator.shared.error;
 
-import br.com.triaige.orchestrator.domain.exception.*;
+import br.com.triaige.orchestrator.domain.exception.OrchestratorException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(SessionNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleSessionNotFound(SessionNotFoundException ex,
-                                                                HttpServletRequest request) {
-        log.warn("Session not found: {} - path={}", ex.getMessage(), request.getRequestURI());
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(LawFirmNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleLawFirmNotFound(LawFirmNotFoundException ex,
-                                                                HttpServletRequest request) {
-        log.warn("Law firm not found: {} - path={}", ex.getMessage(), request.getRequestURI());
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(InvalidSessionStateException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidState(InvalidSessionStateException ex,
-                                                             HttpServletRequest request) {
-        log.warn("Invalid session state: {} - path={}", ex.getMessage(), request.getRequestURI());
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(DocumentNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleDocumentNotFound(DocumentNotFoundException ex,
-                                                                 HttpServletRequest request) {
-        log.warn("Document not found: {} - path={}", ex.getMessage(), request.getRequestURI());
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
-    }
-
-    @ExceptionHandler(BusinessRuleException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessRule(BusinessRuleException ex,
-                                                             HttpServletRequest request) {
-        log.warn("Business rule violation: {} - path={}", ex.getMessage(), request.getRequestURI());
-        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request, null);
+    @ExceptionHandler(OrchestratorException.class)
+    public ResponseEntity<ErrorResponse> handleOrchestratorException(OrchestratorException ex,
+                                                                       HttpServletRequest request) {
+        if (ex.getStatus().is5xxServerError()) {
+            log.error("{}: {} - path={}", ex.getCode(), ex.getMessage(), request.getRequestURI(), ex);
+        } else {
+            log.warn("{}: {} - path={}", ex.getCode(), ex.getMessage(), request.getRequestURI());
+        }
+        return buildResponse(ex.getStatus(), ex.getCode(), ex.getMessage(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -60,34 +37,30 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
         log.warn("Validation error: {} - path={}", message, request.getRequestURI());
-        return buildResponse(HttpStatus.BAD_REQUEST, message, request, null);
+        return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request);
     }
 
-    @ExceptionHandler(QueuePublishingException.class)
-    public ResponseEntity<ErrorResponse> handleQueuePublishing(QueuePublishingException ex,
-                                                                HttpServletRequest request) {
-        log.error("Queue publishing error: {}", ex.getMessage(), ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Erro ao publicar mensagem na fila. Tente novamente.", request, null);
+    @ExceptionHandler({MissingRequestHeaderException.class, MissingServletRequestPartException.class})
+    public ResponseEntity<ErrorResponse> handleMissingRequestPart(Exception ex, HttpServletRequest request) {
+        log.warn("Missing request data: {} - path={}", ex.getMessage(), request.getRequestURI());
+        return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Erro interno inesperado", request, null);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Erro interno inesperado", request);
     }
 
-    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message,
-                                                          HttpServletRequest request,
-                                                          UUID correlationId) {
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String code, String message,
+                                                          HttpServletRequest request) {
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())
+                .code(code)
                 .error(status.getReasonPhrase())
                 .message(message)
                 .path(request.getRequestURI())
-                .correlationId(correlationId)
                 .build();
         return ResponseEntity.status(status).body(error);
     }

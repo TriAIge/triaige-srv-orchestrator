@@ -4,12 +4,10 @@ import java.util.UUID;
 
 public final class CorrelationIdUtil {
 
-    private CorrelationIdUtil() {}
+    private CorrelationIdUtil() {
+    }
 
-    /**
-     * Resolve o correlationId a partir de um valor de cabeçalho recebido.
-     * Se o cabeçalho estiver ausente ou em branco, um novo UUID é gerado.
-     */
+    /** Resolve o correlationId a partir de um valor de cabeçalho; gera um novo UUID se ausente/inválido. */
     public static UUID resolve(String headerValue) {
         if (headerValue != null && !headerValue.isBlank()) {
             try {
