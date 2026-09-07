@@ -16,6 +16,8 @@ public class AwsProperties {
         private String endpoint;
         private String docsReceivedQueueUrl;
         private String docsPreprocessingQueueUrl;
+        /** Fase 4, spec seção 9: fila Q3, publicada só em caso de sucesso da análise de IA. */
+        private String resultsReadyQueueUrl;
         private Q1Consumer q1Consumer = new Q1Consumer();
 
         @Data
@@ -31,5 +33,7 @@ public class AwsProperties {
     public static class S3 {
         private String endpoint;
         private String rawDocumentsBucket;
+        /** Fase 4, spec seção 9: destino do JSON+Markdown do relatório final. */
+        private String curatedDocumentsBucket;
     }
 }

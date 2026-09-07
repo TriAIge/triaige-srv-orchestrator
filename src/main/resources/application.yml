@@ -28,12 +28,6 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: true
-
 server:
   port: ${SERVER_PORT:8080}
 
@@ -45,6 +39,12 @@ orchestrator:
     upload-url-ttl-minutes: 15
   internal:
     mcp-callback-token: ${MCP_INTERNAL_TOKEN:dev-local-internal-token}
+  mcp-ai:
+    base-url: ${MCP_AI_BASE_URL:http://localhost:8084}
+    analyze-path: /api/ai/v1/analyze
+    analyze-token: ${MCP_ANALYZE_TOKEN:dev-local-analyze-token}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 130000
 
 aws:
   region: ${AWS_REGION:us-east-1}
@@ -52,6 +52,7 @@ aws:
     endpoint: ${AWS_SQS_ENDPOINT:}
     docs-received-queue-url: ${DOCS_RECEIVED_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-received}
     docs-preprocessing-queue-url: ${DOCS_PREPROCESSING_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-preprocessing}
+    results-ready-queue-url: ${RESULTS_READY_QUEUE_URL:http://localhost:4566/000000000000/triaige-results-ready}
     q1-consumer:
       enabled: ${Q1_CONSUMER_ENABLED:true}
       poll-interval-ms: ${Q1_POLL_INTERVAL_MS:5000}
@@ -60,6 +61,7 @@ aws:
   s3:
     endpoint: ${AWS_S3_ENDPOINT:}
     raw-documents-bucket: ${RAW_DOCUMENTS_BUCKET:bucket-triaige-raw-certificacoes}
+    curated-documents-bucket: ${CURATED_DOCUMENTS_BUCKET:bucket-triaige-curated}
 
 management:
   endpoints:

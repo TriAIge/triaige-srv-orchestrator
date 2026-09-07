@@ -5,6 +5,7 @@ import br.com.triaige.orchestrator.infrastructure.config.OrchestratorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
@@ -45,6 +46,26 @@ public class S3DocumentStorageService {
         } catch (S3Exception e) {
             log.error("Failed to presign PUT URL: bucket={}, objectKey={}", bucket, objectKey, e);
             throw new DocumentStorageException("Falha ao gerar URL pré-assinada para upload", e);
+        }
+    }
+
+    /**
+     * Grava conteúdo diretamente no S3 (Fase 4, spec seção 9 — JSON estruturado e Markdown
+     * renderizado em bucket-triaige-curated). Ao contrário de {@link #presignPutObject}, o
+     * próprio Orchestrator faz o upload — não há cliente externo envolvido neste fluxo.
+     */
+    public void putObject(String bucket, String objectKey, byte[] content, String contentType) {
+        try {
+            s3Client.putObject(PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(objectKey)
+                            .contentType(contentType)
+                            .build(),
+                    RequestBody.fromBytes(content));
+        } catch (S3Exception e) {
+            log.error("Failed to PutObject: bucket={}, objectKey={}", bucket, objectKey, e);
+            throw new DocumentStorageException(
+                    "Falha ao gravar objeto no S3 curated: bucket=%s, objectKey=%s".formatted(bucket, objectKey), e);
         }
     }
 
