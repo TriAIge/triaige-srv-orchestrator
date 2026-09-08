@@ -8,10 +8,8 @@
 
 * **ID do Caso (Protocolo TriAIge):** `CASE-{{CASE_ID}}`
 * **Escritório Solicitante / Cliente:** `{{NOME_ESCRITORIO}}` (ID: `{{ESCRITORIO_ID}}`)
-* **Canal de Entrada:** `{{CANAL_ENTRADA}}` *(Ex: API Gateway / CRM / Web / WhatsApp)*
 * **Data e Hora de Recebimento:** `{{DATA_HORA_RECEBIMENTO}}`
 * **Data e Hora de Conclusão da Triagem:** `{{DATA_HORA_PROCESSAMENTO}}`
-* **Status do Processamento:** `{{STATUS_PROCESSAMENTO}}` *(Ex: Relatório Gerado / Em Validação)*
 * **Hash do Log de Auditoria (Rastreabilidade):** `{{HASH_AUDITORIA_LOG}}`
 
 ---
@@ -72,7 +70,7 @@
 ---
 
 ## 7. SUGESTÕES DE JURISPRUDÊNCIA E PRECEDENTES SIMILARES
-*(Recuperação Semântica por Vetores via BERT / pgvector)*
+*(Fonte: API MockAPI de jurisprudência (Simulação da Judit). Os dados abaixo são fictícios e não devem ser usados para decisão jurídica de fato.)*
 
 1. **Precedente 1:**
    * **Tribunal / Súmula / Tema:** `{{PRECEDENTE_01_FONTE}}`
@@ -87,7 +85,7 @@
 ---
 
 ## 8. PARECER DE REVISÃO E VALIDAÇÃO HUMANA (HITL)
-> **Campo a ser preenchido pelo Advogado Responsável (Art. 1.1 / US04 / AS IS - TO BE)**
+> **Campo a ser preenchido pelo Advogado Responsável**
 
 * **Parecer da Triagem:** [ ] Aprovado integralmente  |  [ ] Aprovado com ajustes  |  [ ] Rejeitado / Reclassificar
 * **Ajustes na Classificação / Criticidade:** `________________________________________________`

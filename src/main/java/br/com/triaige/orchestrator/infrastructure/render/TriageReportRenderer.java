@@ -28,7 +28,6 @@ public class TriageReportRenderer {
 
     private static final String TEMPLATE_PATH = "templates/template_triagem_triaige.md";
     static final String NOT_AVAILABLE_V1 = "não disponível nesta versão do relatório";
-    private static final String CANAL_ENTRADA = "Não informado";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private static final Map<String, String> NIVEL_LABELS = Map.of(
@@ -80,7 +79,6 @@ public class TriageReportRenderer {
                 .replace("{{CASE_ID}}", value(context.protocolo()))
                 .replace("{{NOME_ESCRITORIO}}", value(context.nomeEscritorio()))
                 .replace("{{ESCRITORIO_ID}}", context.escritorioId() == null ? "" : context.escritorioId().toString())
-                .replace("{{CANAL_ENTRADA}}", CANAL_ENTRADA)
                 .replace("{{DATA_HORA_RECEBIMENTO}}", formatDate(context.dataHoraRecebimento()))
                 .replace("{{DATA_HORA_PROCESSAMENTO}}", formatDate(context.dataHoraProcessamento()))
                 .replace("{{STATUS_PROCESSAMENTO}}", value(context.statusProcessamento()))
@@ -211,7 +209,7 @@ public class TriageReportRenderer {
 
     private String renderSecao7(String source, AnalysisResponseDto.RelatorioEstruturadoDto relatorio) {
         String precedentesBlock = renderPrecedentes(relatorio.getJurisprudenciaCitada());
-        return replaceBetween(source, "*(Recuperação Semântica por Vetores via BERT / pgvector)*\n\n", "\n\n---\n\n## 8.", precedentesBlock);
+        return replaceBetween(source, "*(Fonte: API mock (MockAPI) que simula um serviço real de jurisprudência (Judit). Não utiliza busca vetorial/BERT — os dados abaixo são fictícios e não devem ser usados para decisão jurídica de fato.)*\n\n", "\n\n---\n\n## 8.", precedentesBlock);
     }
 
     private String renderPrecedentes(List<AnalysisResponseDto.JurisprudenciaCitada> precedentes) {
