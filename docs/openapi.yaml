@@ -1,10 +1,12 @@
 openapi: 3.0.3
 info:
-  title: TriAIge Orchestrator — Fase 1 (Ingestão)
+  title: TriAIge Orchestrator — Ingestão e Orquestração da Triagem de IA
   version: "1.0"
   description: >
-    Ingestão de documentos: criação de sessão, upload via URL pré-assinada,
-    confirmação e finalização com publicação em Q2 para o MCP.
+    Ingestão de documentos (criação de sessão, upload via URL pré-assinada,
+    confirmação e finalização com publicação em Q2 para o MCP) e, após o callback
+    do triaige-srv-mcp-ai, disparo da análise de IA e publicação do relatório
+    final para a fila de notificação.
 servers:
   - url: http://localhost:8080/api/orchestrator/v1
 
@@ -116,10 +118,13 @@ paths:
 
   /sessions/{sessionId}/mcp-result:
     post:
-      summary: Callback do triaige-srv-mcp-ai (Fase 2) com o resultado do pipeline
+      summary: Callback do triaige-srv-mcp-ai com o resultado do pipeline
       description: >
         Rede interna apenas (não exposto via ALB/API Gateway em produção). Autenticado por
-        X-Internal-Token, não por Bearer — não faz parte de security: [bearerAuth].
+        X-Internal-Token, não por Bearer — não faz parte de security: [bearerAuth]. Quando
+        status é COMPLETED ou PARTIALLY_COMPLETED, aplicar o resultado também dispara,
+        de forma assíncrona após o commit desta requisição, a análise de IA
+        (sessão passa a ANALYZING e, ao final, ANALYSIS_COMPLETED ou ANALYSIS_FAILED).
       security:
         - internalToken: []
       parameters:
@@ -335,7 +340,7 @@ components:
           type: string
         status:
           type: string
-          enum: [RECEIVING_DOCUMENTS, QUEUED_FOR_PROCESSING, CANCELLED, COMPLETED, PARTIALLY_COMPLETED, FAILED]
+          enum: [RECEIVING_DOCUMENTS, QUEUED_FOR_PROCESSING, CANCELLED, COMPLETED, PARTIALLY_COMPLETED, FAILED, ANALYZING, ANALYSIS_COMPLETED, ANALYSIS_FAILED]
         documents:
           type: array
           items:
