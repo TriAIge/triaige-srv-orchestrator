@@ -13,8 +13,8 @@ import java.util.UUID;
  * Mapeia a tabela {@code ai_tool_calls} do PRÓPRIO Orchestrator (schema espelhado — o
  * mcp-ai tem sua cópia independente da mesma tabela, em outro banco). Usada nesta fase
  * apenas para gravar um registro-stub que satisfaz {@code fk_triage_results_jurisprudence_call}
- * quando {@code jurisprudenceCallId} vem do mcp-ai (spec Fase 4, gap documentado no plano de
- * implementação — o UUID de fato foi gerado na tabela ai_tool_calls do mcp-ai, não nesta).
+ * quando {@code jurisprudenceCallId} vem do mcp-ai (gap documentado — o UUID de fato foi
+ * gerado na tabela ai_tool_calls do mcp-ai, não nesta).
  * {@code requestPayload}/{@code responsePayload} ficam sempre nulos aqui — nunca replicar
  * texto/PII entre serviços.
  */

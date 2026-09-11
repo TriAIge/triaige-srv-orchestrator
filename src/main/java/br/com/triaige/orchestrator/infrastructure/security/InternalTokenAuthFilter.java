@@ -17,12 +17,13 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 
 /**
- * Autentica o callback do triaige-srv-mcp-ai (spec da Fase 2, seção 6) via
- * {@code X-Internal-Token}, comparado ao shared secret configurado — não o esquema de
- * Bearer token de {@link ApiCredentialAuthFilter}, que não se aplica a este endpoint
- * (não há {@code api_credentials} envolvida numa chamada servidor-a-servidor interna).
- * Em produção, o endpoint também não deve ficar exposto via ALB/API Gateway (rede
- * interna apenas) — isso é responsabilidade de infraestrutura, fora deste código.
+ * Autentica callbacks internos — do triaige-srv-mcp-ai e do
+ * triaige-srv-notification — via {@code X-Internal-Token}, comparado ao shared secret
+ * configurado para cada origem — não o esquema de Bearer token de {@link ApiCredentialAuthFilter},
+ * que não se aplica a estes endpoints (não há {@code api_credentials} envolvida numa chamada
+ * servidor-a-servidor interna). Em produção, os endpoints também não devem ficar expostos via
+ * ALB/API Gateway (rede interna apenas) — isso é responsabilidade de infraestrutura, fora deste
+ * código.
  */
 @Component
 @RequiredArgsConstructor
@@ -33,14 +34,17 @@ public class InternalTokenAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().endsWith("/mcp-result");
+        String uri = request.getRequestURI();
+        return !uri.endsWith("/mcp-result") && !uri.endsWith("/notification-result");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                      FilterChain filterChain) throws ServletException, IOException {
         String token = request.getHeader("X-Internal-Token");
-        String expected = orchestratorProperties.getInternal().getMcpCallbackToken();
+        String expected = request.getRequestURI().endsWith("/notification-result")
+                ? orchestratorProperties.getInternal().getNotificationCallbackToken()
+                : orchestratorProperties.getInternal().getMcpCallbackToken();
 
         if (token == null || expected == null || !constantTimeEquals(token, expected)) {
             writeError(response, request, new UnauthorizedException("X-Internal-Token inválido ou ausente"));

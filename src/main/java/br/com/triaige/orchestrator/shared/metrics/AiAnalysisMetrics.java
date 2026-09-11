@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
-/** Métricas da Fase 4, spec seção 10, mesmo namespace CloudWatch Triaige/Orchestrator. */
+/** Métricas, mesmo namespace CloudWatch Triaige/Orchestrator. */
 @Component
 @RequiredArgsConstructor
 public class AiAnalysisMetrics {

@@ -2,7 +2,7 @@ package br.com.triaige.orchestrator.domain.enums;
 
 import lombok.Getter;
 
-/** OCR..EVIDENCE_SUMMARIZATION são escritos pelo triaige-srv-mcp-ai na Fase 2 (spec seção 5), mesma tabela compartilhada processing_steps. */
+/** OCR..EVIDENCE_SUMMARIZATION são escritos pelo triaige-srv-mcp-ai, mesma tabela compartilhada processing_steps. */
 @Getter
 public enum ProcessingStepName {
     DOCUMENT_UPLOAD("document_upload"),
@@ -10,7 +10,9 @@ public enum ProcessingStepName {
     OCR("ocr"),
     ANONYMIZATION("anonymization"),
     ATTACHMENT_GROUPING("attachment_grouping"),
-    EVIDENCE_SUMMARIZATION("evidence_summarization");
+    EVIDENCE_SUMMARIZATION("evidence_summarization"),
+    /** Escrito diretamente por triaige-srv-notification em processing_steps. */
+    NOTIFICATION_DISPATCH("notification_dispatch");
 
     private final String value;
 

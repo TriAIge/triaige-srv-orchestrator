@@ -10,7 +10,11 @@ public enum EventType {
     MCP_RESULT_RECEIVED("mcp_result_received"),
     AI_ANALYSIS_STARTED("ai_analysis_started"),
     AI_ANALYSIS_COMPLETED("ai_analysis_completed"),
-    AI_ANALYSIS_FAILED("ai_analysis_failed");
+    AI_ANALYSIS_FAILED("ai_analysis_failed"),
+    /** Escrito diretamente por triaige-srv-notification em audit_events. */
+    NOTIFICATION_SENT("notification_sent"),
+    /** Escrito diretamente por triaige-srv-notification em audit_events. */
+    NOTIFICATION_FAILED("notification_failed");
 
     private final String value;
 

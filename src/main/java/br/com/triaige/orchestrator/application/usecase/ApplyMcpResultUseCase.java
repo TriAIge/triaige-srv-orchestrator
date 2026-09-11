@@ -20,9 +20,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * POST {basePath}/sessions/{sessionId}/mcp-result — spec da Fase 2, seção 6. O
+ * POST {basePath}/sessions/{sessionId}/mcp-result. O
  * triaige-srv-mcp-ai já escreveu diretamente o status/processed_bucket/processed_object_key
- * de cada legal_documents que processou (spec Fase 2, seção 3); este use case cuida
+ * de cada legal_documents que processou; este use case cuida
  * apenas do que é responsabilidade do Orchestrator: status da sessão e auditoria.
  */
 @Slf4j

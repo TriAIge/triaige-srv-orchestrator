@@ -14,11 +14,11 @@ import java.util.Map;
 
 /**
  * Renderiza o relatório estruturado no formato do template canônico
- * {@code template_triagem_triaige.md} (Fase 4, spec seção 6). Classe pura — sem I/O de rede
+ * {@code template_triagem_triaige.md}. Classe pura — sem I/O de rede
  * ou banco, só o template já carregado do classpath na construção.
  *
  * <p>O template tem blocos de tamanho fixo (3 pedidos, 2 pontos críticos, 2 precedentes,
- * 2 nomes de arquivo) mas a spec exige 1 bloco por item do array recebido — em vez de um
+ * 2 nomes de arquivo) mas exige 1 bloco por item do array recebido — em vez de um
  * {@code String.replace} ingênuo, esta classe localiza cada região variável por âncoras
  * literais estáveis do template (cabeçalhos de seção, textos fixos) e substitui todo o
  * conteúdo entre elas por blocos gerados dinamicamente em Java.</p>
@@ -209,7 +209,7 @@ public class TriageReportRenderer {
 
     private String renderSecao7(String source, AnalysisResponseDto.RelatorioEstruturadoDto relatorio) {
         String precedentesBlock = renderPrecedentes(relatorio.getJurisprudenciaCitada());
-        return replaceBetween(source, "*(Fonte: API mock (MockAPI) que simula um serviço real de jurisprudência (Judit). Não utiliza busca vetorial/BERT — os dados abaixo são fictícios e não devem ser usados para decisão jurídica de fato.)*\n\n", "\n\n---\n\n## 8.", precedentesBlock);
+        return replaceBetween(source, "*(Fonte: API MockAPI de jurisprudência (Simulação da Judit). Os dados abaixo são fictícios e não devem ser usados para decisão jurídica de fato.)*\n\n", "\n\n---\n\n## 8.", precedentesBlock);
     }
 
     private String renderPrecedentes(List<AnalysisResponseDto.JurisprudenciaCitada> precedentes) {

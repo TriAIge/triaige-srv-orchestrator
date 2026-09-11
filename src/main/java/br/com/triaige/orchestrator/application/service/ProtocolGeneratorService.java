@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 /**
- * Geração atômica de protocolo (spec seção 6). Propagation REQUIRED: quando
+ * Geração atômica de protocolo. Propagation REQUIRED: quando
  * chamada de dentro da transação de criação da sessão (caso de uso normal),
  * junta-se a ela — mesma transação do INSERT em triage_sessions, para que um
  * rollback não deixe o número "furado". Também pode ser chamada isoladamente

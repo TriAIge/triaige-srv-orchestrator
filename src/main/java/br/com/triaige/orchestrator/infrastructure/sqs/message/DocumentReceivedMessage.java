@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Contrato Q1 (triaige-docs-received) — spec seção 7.1. */
+/** Contrato Q1 (triaige-docs-received). */
 @Data
 @Builder
 @NoArgsConstructor

@@ -43,10 +43,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Cobre o coração do fluxo assíncrono da Fase 4: caminho feliz, os 2 branches de falha
+ * Cobre o coração do fluxo assíncrono: caminho feliz, os 2 branches de falha
  * (rede esgotada após retry, erro HTTP explícito sem retry) e a proteção de idempotência
- * via {@code DataIntegrityViolationException} (spec seção 9, plano de implementação,
- * "Riscos" item 3). {@link TransactionTemplate} é mockado para simplesmente invocar o
+ * via {@code DataIntegrityViolationException}. {@link TransactionTemplate} é mockado para simplesmente invocar o
  * callback recebido — não há transação JDBC real neste teste.
  */
 class TriggerAiAnalysisUseCaseTest {

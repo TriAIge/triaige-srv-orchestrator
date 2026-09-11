@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 
 /**
- * Autenticação via api_credentials (spec seção 5): token do header Authorization
+ * Autenticação via api_credentials: token do header Authorization
  * é hasheado (SHA-256) e comparado contra api_credentials.token_hash. A busca é
  * feita por índice único no hash (não por comparação sequencial do token em
  * texto claro), o que já evita o vazamento por timing de uma comparação

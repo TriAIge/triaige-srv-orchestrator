@@ -10,8 +10,7 @@ import java.time.Duration;
 
 /**
  * Bean único (não recriado por chamada, ao contrário de {@code OrchestratorCallbackClient}
- * do mcp-ai) — necessário para permitir {@code MockRestServiceServer.bindTo(...)} em teste
- * (spec Fase 4, plano de implementação, seção 2.5).
+ * do mcp-ai) — necessário para permitir {@code MockRestServiceServer.bindTo(...)} em teste.
  */
 @Configuration
 @RequiredArgsConstructor

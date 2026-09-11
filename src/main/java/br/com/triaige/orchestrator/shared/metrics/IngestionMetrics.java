@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
-/** Métricas da spec seção 9, namespace CloudWatch Triaige/Orchestrator (via management.cloudwatch.metrics.export). */
+/** Métricas, namespace CloudWatch Triaige/Orchestrator (via management.cloudwatch.metrics.export). */
 @Component
 @RequiredArgsConstructor
 public class IngestionMetrics {

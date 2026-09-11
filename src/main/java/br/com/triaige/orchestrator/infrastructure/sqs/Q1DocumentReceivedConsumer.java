@@ -16,7 +16,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import java.util.List;
 
 /**
- * Consumidor interno de Q1 (spec seções 2 e 5.3): reprocessa idempotentemente
+ * Consumidor interno de Q1: reprocessa idempotentemente
  * (por documentId) a mesma lógica do passo 4 de POST .../complete, garantindo
  * que uma falha na escrita síncrona do MySQL seja recuperada sem exigir novo
  * upload do arquivo. Mesma instância do Orchestrator — não há outro consumidor.

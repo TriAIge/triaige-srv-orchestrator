@@ -358,7 +358,7 @@ components:
     McpResultCallbackRequest:
       type: object
       required: [sessionId, status]
-      description: Espelha McpResultCallbackPayload do triaige-srv-mcp-ai (spec da Fase 2, seção 6).
+      description: Espelha McpResultCallbackPayload do triaige-srv-mcp-ai.
       properties:
         schemaVersion:
           type: string

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Corpo de {@code POST /api/ai/v1/analyze} no triaige-srv-mcp-ai (Fase 3, seção 4.1). Cópia
+ * Corpo de {@code POST /api/ai/v1/analyze} no triaige-srv-mcp-ai. Cópia
  * local do contrato — não há módulo compartilhado entre os dois serviços, mesma convenção já
  * usada para {@code McpResultCallbackRequest} (direção oposta).
  */

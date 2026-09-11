@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Log estruturado por requisição (spec seção 9): um evento JSON com
+ * Log estruturado por requisição: um evento JSON com
  * timestamp, level, service, endpoint, method, correlationId, sessionId
  * (quando aplicável), statusCode e latencyMs — nunca conteúdo de documentos
  * ou dados pessoais. correlationId/sessionId ficam no MDC para que qualquer

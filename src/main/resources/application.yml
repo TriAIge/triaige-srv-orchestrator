@@ -39,6 +39,7 @@ orchestrator:
     upload-url-ttl-minutes: 15
   internal:
     mcp-callback-token: ${MCP_INTERNAL_TOKEN:dev-local-internal-token}
+    notification-callback-token: ${NOTIFICATION_INTERNAL_TOKEN:dev-local-internal-token}
   mcp-ai:
     base-url: ${MCP_AI_BASE_URL:http://localhost:8084}
     analyze-path: /api/ai/v1/analyze

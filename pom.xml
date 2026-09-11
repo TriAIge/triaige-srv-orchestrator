@@ -127,7 +127,7 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Fase 4: asserções determinísticas sobre o fluxo assíncrono (@Async + @TransactionalEventListener) -->
+        <!-- Asserções determinísticas sobre o fluxo assíncrono (@Async + @TransactionalEventListener) -->
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>

@@ -50,7 +50,7 @@ public class S3DocumentStorageService {
     }
 
     /**
-     * Grava conteúdo diretamente no S3 (Fase 4, spec seção 9 — JSON estruturado e Markdown
+     * Grava conteúdo diretamente no S3 (JSON estruturado e Markdown
      * renderizado em bucket-triaige-curated). Ao contrário de {@link #presignPutObject}, o
      * próprio Orchestrator faz o upload — não há cliente externo envolvido neste fluxo.
      */

@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-/** Contrato Q3 (triaige-results-ready) — Fase 4, spec seção 4, passo 10. Payload mínimo, publicado só em sucesso. */
+/** Contrato Q3 (triaige-results-ready). Payload mínimo, publicado só em sucesso. */
 @Data
 @Builder
 @NoArgsConstructor

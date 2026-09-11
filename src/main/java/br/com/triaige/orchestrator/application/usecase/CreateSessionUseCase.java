@@ -6,10 +6,14 @@ import br.com.triaige.orchestrator.application.service.AuditService;
 import br.com.triaige.orchestrator.application.service.ProtocolGeneratorService;
 import br.com.triaige.orchestrator.domain.entity.ApiCredential;
 import br.com.triaige.orchestrator.domain.entity.LawFirm;
+import br.com.triaige.orchestrator.domain.entity.LawFirmContact;
 import br.com.triaige.orchestrator.domain.entity.LegalCase;
+import br.com.triaige.orchestrator.domain.entity.NotificationRecipient;
 import br.com.triaige.orchestrator.domain.entity.TriageSession;
 import br.com.triaige.orchestrator.domain.enums.EventType;
 import br.com.triaige.orchestrator.domain.enums.SessionStatus;
+import br.com.triaige.orchestrator.infrastructure.persistence.LawFirmContactRepository;
+import br.com.triaige.orchestrator.infrastructure.persistence.NotificationRecipientRepository;
 import br.com.triaige.orchestrator.infrastructure.persistence.TriageSessionRepository;
 import br.com.triaige.orchestrator.shared.metrics.IngestionMetrics;
 import jakarta.persistence.EntityManager;
@@ -18,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -26,6 +31,8 @@ import java.util.UUID;
 public class CreateSessionUseCase {
 
     private final TriageSessionRepository sessionRepository;
+    private final LawFirmContactRepository lawFirmContactRepository;
+    private final NotificationRecipientRepository notificationRecipientRepository;
     private final ProtocolGeneratorService protocolGenerator;
     private final AuditService auditService;
     private final EntityManager entityManager;
@@ -60,6 +67,8 @@ public class CreateSessionUseCase {
 
         TriageSession saved = sessionRepository.save(session);
 
+        linkActiveContactsAsRecipients(saved);
+
         auditService.record(saved.getId(), lawFirmId, correlationId, EventType.SESSION_CREATED,
                 "Sessão criada com protocolo " + protocolo);
 
@@ -75,5 +84,29 @@ public class CreateSessionUseCase {
                 .status(saved.getStatus())
                 .createdAt(saved.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Vincula os contatos ativos do escritório como destinatários de notificação da sessão
+     * (notification_recipients), snapshot no momento da criação. Sem isso, o triaige-srv-notification consome o resultado da IA mas não encontra
+     * ninguém para notificar (RecipientRepositoryPort.findActiveBySessionId retorna vazio).
+     */
+    private void linkActiveContactsAsRecipients(TriageSession session) {
+        List<LawFirmContact> activeContacts =
+                lawFirmContactRepository.findByLawFirmIdAndAtivoTrue(session.getLawFirm().getId());
+
+        for (LawFirmContact contact : activeContacts) {
+            NotificationRecipient recipient = NotificationRecipient.builder()
+                    .session(session)
+                    .contact(contact)
+                    .nome(contact.getNome())
+                    .email(contact.getEmail())
+                    .telefone(contact.getTelefone())
+                    .canalPreferencial(contact.getCanalPreferencial())
+                    .build();
+            notificationRecipientRepository.save(recipient);
+        }
+
+        log.info("Notification recipients linked: sessionId={}, count={}", session.getId(), activeContacts.size());
     }
 }

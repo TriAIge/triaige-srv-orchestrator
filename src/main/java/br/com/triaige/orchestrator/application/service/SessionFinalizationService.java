@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/** Passo 5 de POST .../finalize (spec seção 5.4) — transação MySQL após a publicação em Q2. */
+/** Passo 5 de POST .../finalize — transação MySQL após a publicação em Q2. */
 @Slf4j
 @Service
 @RequiredArgsConstructor

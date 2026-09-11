@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Payload do callback síncrono do triaige-srv-mcp-ai ao concluir o pipeline de uma sessão
- * (spec da Fase 2, seção 6). Endpoint adicionado nesta entrega: POST
+ * Payload do callback síncrono do triaige-srv-mcp-ai ao concluir o pipeline de uma sessão.
+ * Endpoint adicionado nesta entrega: POST
  * {basePath}/sessions/{sessionId}/mcp-result, autenticado por X-Internal-Token (rede
  * interna), não pelo ApiCredentialAuthFilter de Bearer token usado pelo restante da API.
  */

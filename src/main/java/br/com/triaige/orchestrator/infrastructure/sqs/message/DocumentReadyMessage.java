@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/** Contrato Q2 (triaige-docs-preprocessing) — spec seção 7.2. Orchestrator <-> MCP <-> AI. */
+/** Contrato Q2 (triaige-docs-preprocessing). Orchestrator <-> MCP <-> AI. */
 @Data
 @Builder
 @NoArgsConstructor

@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 
 /**
- * Autentica toda requisição sob {@code orchestrator.base-path} via Authorization: Bearer <token>
- * (spec seção 5). Em sucesso, expõe {@code lawFirmId} e {@code apiCredentialId} como request
+ * Autentica toda requisição sob {@code orchestrator.base-path} via Authorization: Bearer <token>.
+ * Em sucesso, expõe {@code lawFirmId} e {@code apiCredentialId} como request
  * attributes, consumidos pelos controllers via @RequestAttribute.
  */
 @Component
@@ -37,7 +37,7 @@ public class ApiCredentialAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        if (uri.endsWith("/mcp-result")) {
+        if (uri.endsWith("/mcp-result") || uri.endsWith("/notification-result")) {
             // Autenticado via X-Internal-Token por InternalTokenAuthFilter, não por Bearer.
             return true;
         }

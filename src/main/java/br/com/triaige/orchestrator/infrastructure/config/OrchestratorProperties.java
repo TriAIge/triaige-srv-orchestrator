@@ -27,9 +27,11 @@ public class OrchestratorProperties {
     @Data
     public static class Internal {
         private String mcpCallbackToken = "dev-local-internal-token";
+        /** Callback do triaige-srv-notification (POST .../notification-result). */
+        private String notificationCallbackToken = "dev-local-internal-token";
     }
 
-    /** Fase 4, spec seção 2.5: client Orchestrator→mcp-ai (POST /api/ai/v1/analyze). */
+    /** Client Orchestrator→mcp-ai (POST /api/ai/v1/analyze). */
     @Data
     public static class McpAi {
         private String baseUrl = "http://localhost:8084";

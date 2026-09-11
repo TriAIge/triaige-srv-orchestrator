@@ -14,11 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
- * Client de saída Orchestrator → triaige-srv-mcp-ai (Fase 4, spec seção 2.2, 2.5, 2.6):
+ * Client de saída Orchestrator → triaige-srv-mcp-ai:
  * {@code POST /api/ai/v1/analyze} com {@code X-Internal-Token} e
  * {@code Idempotency-Key = sessionId}. Falhas de rede/conexão (timeout, connection refused)
  * chegam ao chamador como {@link org.springframework.web.client.ResourceAccessException} —
- * a única categoria elegível ao retry único da spec (seção 2.4). Um erro HTTP explícito
+ * a única categoria elegível ao retry único. Um erro HTTP explícito
  * (4xx/5xx) do mcp-ai é relançado como {@link McpAiHttpException}, nunca elegível a retry.
  */
 @Component

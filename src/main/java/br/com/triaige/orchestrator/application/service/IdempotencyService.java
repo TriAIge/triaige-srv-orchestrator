@@ -23,7 +23,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Suporte a idempotência (spec seção 8): registra (idempotencyKey, endpoint, requestHash,
+ * Suporte a idempotência: registra (idempotencyKey, endpoint, requestHash,
  * responseBody, statusCode) e, em reenvio com a mesma chave e mesmo payload, retorna a
  * resposta original sem reexecutar efeitos colaterais. Mesma chave com payload diferente
  * resulta em 409 IDEMPOTENCY_KEY_CONFLICT.

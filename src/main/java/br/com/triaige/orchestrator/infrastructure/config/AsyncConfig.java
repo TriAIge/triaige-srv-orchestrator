@@ -11,7 +11,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * Fase 4, spec seção 2.2: disparo da análise de IA acontece em thread separada, após o
+ * Disparo da análise de IA acontece em thread separada, após o
  * commit da transação do callback {@code mcp-result}, para não segurar a resposta HTTP ao
  * MCP pela duração de uma chamada que pode levar até {@code ANALYSIS_TIMEOUT_MS} (120s).
  * Sizing modesto: cada tarefa é I/O-bound (HTTP + S3 + SQS) e o volume esperado é baixo

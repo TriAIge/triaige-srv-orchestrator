@@ -34,11 +34,15 @@ services:
       # Shared secret do callback do triaige-srv-mcp-ai (POST .../mcp-result). Deve ser o
       # mesmo valor configurado em MCP_INTERNAL_TOKEN no .env do triaige-srv-mcp-ai.
       MCP_INTERNAL_TOKEN: ${MCP_INTERNAL_TOKEN}
-      # Fase 4: client Orchestrator -> mcp-ai. host.docker.internal porque o mcp-ai roda
+      # client Orchestrator -> mcp-ai. host.docker.internal porque o mcp-ai roda
       # num compose/rede Docker separado deste — só é alcançável pela porta publicada no
       # host (mesma convenção já usada por ORCHESTRATOR_BASE_URL no compose do mcp-ai).
       MCP_AI_BASE_URL: ${MCP_AI_BASE_URL}
       MCP_ANALYZE_TOKEN: ${MCP_ANALYZE_TOKEN}
+      # Shared secret do callback do triaige-srv-notification (POST .../notification-result).
+      # Deve ser o mesmo valor configurado em NOTIFICATION_INTERNAL_TOKEN no .env do
+      # triaige-srv-notification.
+      NOTIFICATION_INTERNAL_TOKEN: ${NOTIFICATION_INTERNAL_TOKEN}
     ports:
       - "${SRV_ORCHESTRATOR_PORT}:8080"
     healthcheck:

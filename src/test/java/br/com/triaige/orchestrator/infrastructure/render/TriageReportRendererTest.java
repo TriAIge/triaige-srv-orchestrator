@@ -10,7 +10,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Cobre a Fase 4, spec seção 6: blocos de tamanho variável (não fixo em 3/2/2 como o
+ * Cobre blocos de tamanho variável (não fixo em 3/2/2 como o
  * template original), aderência renderizada como rótulo qualitativo (nunca percentual),
  * fallback "não disponível nesta versão do relatório" quando o relatório é schemaVersion
  * "1.0" (campos v2 ausentes), e hash estável para o mesmo contexto.

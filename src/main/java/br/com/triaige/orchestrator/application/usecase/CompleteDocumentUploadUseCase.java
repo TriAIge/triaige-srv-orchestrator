@@ -26,7 +26,7 @@ import java.util.UUID;
 /**
  * Não é @Transactional no nível do use case: os passos 2 (HeadObject no S3) e 3
  * (publicar em Q1) precisam ocorrer ANTES da transação MySQL do passo 4, por
- * design (spec seção 2) — Q1 é o mecanismo de recuperação caso a escrita no
+ * design — Q1 é o mecanismo de recuperação caso a escrita no
  * MySQL falhe. A transação em si vive em {@link DocumentReceivedFinalizationService}.
  */
 @Slf4j

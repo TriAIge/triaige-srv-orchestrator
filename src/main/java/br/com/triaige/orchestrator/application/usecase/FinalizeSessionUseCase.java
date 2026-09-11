@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 
 /**
  * Não é @Transactional no use case: a publicação em Q2 (passo 4) precisa
- * ocorrer antes da transação MySQL (passo 5), por design (spec seção 5.4) —
+ * ocorrer antes da transação MySQL (passo 5), por design —
  * se a transação falhar depois do publish, nada no estado muda (nada foi
  * commitado ainda), então não há inconsistência a reconciliar nesta fase.
  */

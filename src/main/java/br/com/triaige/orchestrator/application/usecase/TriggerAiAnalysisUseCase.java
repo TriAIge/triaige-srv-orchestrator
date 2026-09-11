@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Coração do fluxo da Fase 4 (spec seção 4, passos 3-11): monta o {@code AnalysisRequest},
+ * Coração do fluxo (passos 3-11): monta o {@code AnalysisRequest},
  * chama o mcp-ai, renderiza o relatório no template canônico, grava JSON+Markdown no S3
  * curated, persiste {@code triage_results} e publica em Q3 — ou, em qualquer falha, marca
  * {@code ANALYSIS_FAILED} e audita o código de erro.
@@ -103,7 +103,7 @@ public class TriggerAiAnalysisUseCase {
         }
     }
 
-    /** Idempotência preventiva (spec Fase 4, plano de implementação, seção "Riscos", item 3). */
+    /** Idempotência preventiva. */
     private boolean markAnalyzing(AiAnalysisTriggeredEvent event) {
         return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
             TriageSession session = sessionRepository.findById(event.sessionId())
@@ -121,7 +121,7 @@ public class TriggerAiAnalysisUseCase {
         }));
     }
 
-    /** 1 retry com backoff fixo de 5s, só para falha de rede/conexão (spec seção 2.4). */
+    /** 1 retry com backoff fixo de 5s, só para falha de rede/conexão. */
     private AnalysisResponseDto callMcpAi(AiAnalysisTriggeredEvent event) {
         AnalysisRequestDto request = buildAnalysisRequest(event);
         try {
@@ -261,7 +261,7 @@ public class TriggerAiAnalysisUseCase {
         aiToolCallRepository.save(stub);
     }
 
-    /** Falha aqui é logada + métrica, não reverte ANALYSIS_COMPLETED já commitado (gap conhecido, fora da spec). */
+    /** Falha aqui é logada + métrica, não reverte ANALYSIS_COMPLETED já commitado (gap conhecido). */
     private void publishResultsReady(AiAnalysisTriggeredEvent event, AnalysisResponseDto response) {
         ResultsReadyMessage message = ResultsReadyMessage.builder()
                 .sessionId(event.sessionId())

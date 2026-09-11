@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Resposta de {@code POST /api/ai/v1/analyze} no triaige-srv-mcp-ai (Fase 3, seção 4.3;
- * schema do relatório estendido pela Fase 4, seção 5, para "2.0"). Cópia local do contrato,
+ * Resposta de {@code POST /api/ai/v1/analyze} no triaige-srv-mcp-ai (schema do relatório
+ * estendido para "2.0"). Cópia local do contrato,
  * mesma convenção de {@link AnalysisRequestDto}.
  */
 @Data
@@ -47,7 +47,7 @@ public class AnalysisResponseDto {
         private Recomendacao recomendacao;
         private Metadados metadados;
 
-        // Fase 4 (schemaVersion "2.0") — null quando schemaVersion="1.0".
+        // (schemaVersion "2.0") — null quando schemaVersion="1.0".
         private ClassificacaoInicial classificacaoInicial;
         private AvaliacaoCriticidade avaliacaoCriticidade;
         private PartesExtraidas partesExtraidas;

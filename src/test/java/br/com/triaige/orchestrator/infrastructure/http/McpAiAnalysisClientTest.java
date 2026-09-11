@@ -25,7 +25,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * Cobre a distinção rede-vs-HTTP-explícito da spec Fase 4, seção 2.4: falha de rede chega
+ * Cobre a distinção rede-vs-HTTP-explícito: falha de rede chega
  * como {@link ResourceAccessException} (única categoria elegível a retry, decidido pelo
  * chamador — {@code TriggerAiAnalysisUseCase}); erro HTTP explícito vira
  * {@link McpAiHttpException}, nunca elegível a retry.

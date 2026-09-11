@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Aplica o passo 4 de POST .../complete (spec seção 5.3): marca o documento como
+ * Aplica o passo 4 de POST .../complete: marca o documento como
  * RECEIVED e conclui o processing_step document_upload. Idempotente por documentId —
  * usada tanto pelo endpoint síncrono quanto pelo consumidor interno de Q1, que
  * reprocessa a mesma lógica caso a escrita síncrona no MySQL tenha falhado.
