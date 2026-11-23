@@ -50,6 +50,11 @@ A análise de IA é disparada por um evento de aplicação consumido **após o c
 
 ## Arquitetura interna
 
+Decisões de arquitetura registradas em [`docs/adr/`](docs/adr/):
+
+- [0001 — Upload direto ao S3 por URL pré-assinada](docs/adr/0001-upload-direto-ao-s3-por-url-pre-assinada.md)
+- [0002 — Callback HTTP do mcp-ai em vez de fila de retorno](docs/adr/0002-callback-http-do-mcp-ai.md)
+
 Organização em pacotes por responsabilidade (estilo hexagonal):
 
 ```text
