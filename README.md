@@ -1,190 +1,161 @@
 # TriAIge / triaige-srv-orchestrator
 
-> Serviço de ingestão de documentos e orquestração da triagem jurídica: recebe os documentos do escritório, coordena o pipeline de IA e devolve o relatório final.
+> Serviço de ingestão de documentos e orquestração da triagem jurídica.
+
+![Java](https://img.shields.io/badge/Java_21-007396?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot_3.5-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS_S3_%7C_SQS-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white)
+![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-blue?style=flat-square)
+
+Parte da plataforma [TriAIge](https://github.com/TriAIge) — triagem jurídica assistida por IA.
 
 ## Sobre o projeto
 
-O **TriAIge** é uma plataforma de triagem jurídica assistida por IA: escritórios de advocacia enviam os documentos de um caso e recebem de volta um relatório estruturado (classificação, avaliação de criticidade, partes envolvidas, prazos e resumo fundamentado), com o texto sensível anonimizado antes de qualquer processamento por IA.
+Este serviço é a porta de entrada e o ponto de fechamento do fluxo de triagem. Recebe os documentos do escritório (upload direto no S3 por URL pré-assinada), publica cada sessão para o pipeline do `triaige-srv-mcp-ai`, dispara a análise de IA quando o pipeline termina e grava o relatório final no S3 *curated*, publicando-o para o `triaige-srv-notification`.
 
-Este repositório contém o serviço responsável por:
-
-- Receber os documentos enviados pelo escritório e persistir metadados da sessão/caso no MySQL.
-- Armazenar os arquivos originais no S3 (bucket *raw*) via upload direto com URL pré-assinada.
-- Publicar o "documento pronto" na fila de pré-processamento para o `triaige-srv-mcp-ai` consumir.
-- Receber de volta o resultado do pipeline (callback) e, quando concluído com sucesso, disparar a análise de IA, renderizar o relatório final e publicá-lo para a fila de notificação.
-
-## Papel deste serviço na arquitetura
-
-O Orchestrator é o ponto de entrada do fluxo de triagem e também quem fecha o ciclo, aplicando o resultado da IA ao caso do escritório.
+## Papel na arquitetura
 
 ```text
-Sistema do escritório
-   ↓ (upload de documentos)
-triaige-srv-orchestrator  ←──────────────┐
-   ↓ (Q2: documento pronto)              │ (callback: mcp-result)
-triaige-srv-mcp-ai (pipeline T1-T4)  ─────┘
-   ↓ (mcp-ai dispara a análise; orchestrator recebe o relatório e publica)
-Q3 (fila de notificação) → serviço de notificação (fora deste repositório)
+Sistema do escritório / portal
+   ↓ 1. cria sessão, pede URL pré-assinada e envia o arquivo direto ao S3 raw
+triaige-srv-orchestrator  ←──────────────────────────────┐
+   ↓ 2. finalize → publica "documento pronto" (Q2)        │ 3. callback mcp-result
+triaige-srv-mcp-ai (T1 OCR → T2 → T3 → T4) ───────────────┘
+   ↑ 4. POST /api/ai/v1/analyze (após o callback)
+triaige-srv-orchestrator
+   ↓ 5. renderiza o relatório no template canônico e grava no S3 curated
+   ↓ 6. publica "resultado pronto" (Q3 triaige-results-ready)
+triaige-srv-notification ── 7. callback notification-result ──→ triaige-srv-orchestrator
 ```
+
+A análise de IA é disparada por um evento de aplicação consumido **após o commit** do callback `mcp-result` (`COMPLETED`/`PARTIALLY_COMPLETED`), em thread separada. A sessão passa por `ANALYZING` → `ANALYSIS_COMPLETED` e, com o retorno do notification, `NOTIFIED`/`NOTIFICATION_FAILED`. Qualquer falha na análise marca `ANALYSIS_FAILED` e audita o `errorCode`, nunca deixando uma sessão presa em `ANALYZING`.
 
 ## Responsabilidades
 
-Este serviço é responsável por:
-
-- Criar sessões de triagem e o caso associado, com geração de protocolo único.
-- Emitir URLs pré-assinadas de upload para o S3 (bucket *raw*) e confirmar a conclusão de cada upload.
-- Finalizar o recebimento de uma sessão e publicar o evento de "documento pronto" (Q2) para o `triaige-srv-mcp-ai`.
-- Receber o callback com o resultado do pipeline (`mcp-result`) e aplicá-lo ao estado da sessão.
-- A partir da conclusão do pipeline (`COMPLETED`/`PARTIALLY_COMPLETED`), disparar a chamada de análise de IA ao `triaige-srv-mcp-ai`, renderizar o relatório estruturado retornado no template canônico e gravá-lo no S3 (bucket *curated*).
-- Publicar o resultado final na fila de notificação (Q3).
-- Autenticação por credencial de API (escritórios) e por token interno (chamadas servidor-a-servidor), idempotência das operações com efeito colateral, auditoria e métricas.
+- Criar sessões de triagem e o caso associado, com protocolo único, e vincular os contatos ativos do escritório como destinatários (`notification_recipients`).
+- Emitir URLs pré-assinadas de upload para o S3 *raw* e confirmar a conclusão de cada upload.
+- Finalizar o recebimento de uma sessão e publicar o "documento pronto" (Q2) para o `triaige-srv-mcp-ai`.
+- Receber o callback do pipeline (`mcp-result`) e, em caso de sucesso, chamar a análise de IA no `triaige-srv-mcp-ai` (1 retry com backoff fixo em falha de rede).
+- Renderizar o relatório no template canônico, gravá-lo (JSON + Markdown) no S3 *curated*, persistir `triage_results` e publicar na Q3.
+- Receber o callback do `triaige-srv-notification` (`notification-result`) e fechar o ciclo da sessão.
+- Autenticação por credencial de API e por token interno, idempotência, auditoria e métricas.
 
 ### Fora do escopo
 
-Este serviço não é responsável por:
+- OCR, anonimização, agrupamento e raciocínio de IA — `triaige-srv-mcp-ai`.
+- Envio de e-mails ao escritório — `triaige-srv-notification`.
+- Cadastro de escritórios, contatos e credenciais — `triaige-front-nextjs`.
+- Provisionamento de rede, filas, buckets e banco — `triaige-infra`.
 
-- OCR, anonimização, agrupamento de documentos ou raciocínio de IA — isso é feito pelo `triaige-srv-mcp-ai`.
-- Envio de notificações ao escritório — isso é responsabilidade do serviço de notificação, que consome a fila publicada por este serviço.
-- Provisionamento de infraestrutura (rede, filas, buckets, banco) — isso é feito pelo `triaige-infra`.
-
-## Arquitetura
+## Arquitetura interna
 
 Organização em pacotes por responsabilidade (estilo hexagonal):
 
 ```text
-api/            controllers e DTOs de request/response
-application/    use cases (um por endpoint), services de domínio
-                (ProtocolGeneratorService, AuditService, IdempotencyService,
-                ApiCredentialAuthService, DocumentReceivedFinalizationService,
-                SessionFinalizationService, TriggerAiAnalysisUseCase) e o
-                listener que dispara a análise de IA após o commit do callback
-                (AiAnalysisEventListener)
-domain/         entidades JPA, enums, exceções de negócio e eventos de aplicação
-                (AiAnalysisTriggeredEvent)
-infrastructure/ config (AWS, Jackson, propriedades, execução assíncrona),
-                persistence (repositórios JPA), s3 (presign / head object),
-                sqs (publisher, mensagens, consumidor interno de Q1), security
-                (filtros de autenticação), http (cliente do triaige-srv-mcp-ai),
-                render (preenchimento do template canônico do relatório final)
-shared/         tratamento de erro, logging estruturado, métricas, utilitários
+src/main/java/br/com/triaige/orchestrator/
+├── api/            controllers e DTOs de request/response
+├── application/    use cases (um por endpoint), services de domínio (ProtocolGeneratorService,
+│                   AuditService, IdempotencyService, ApiCredentialAuthService,
+│                   SessionFinalizationService, TriggerAiAnalysisUseCase) e o listener
+│                   AiAnalysisEventListener, que dispara a análise após o commit do callback
+├── domain/         entidades JPA, enums, exceções de negócio e eventos de aplicação
+├── infrastructure/ config, persistence (JPA), s3 (presign / head object), sqs (publisher e
+│                   consumidor interno da Q1), security (filtros), http (cliente do mcp-ai),
+│                   render (template canônico do relatório)
+└── shared/         tratamento de erro, logging estruturado, métricas, utilitários
+src/main/resources/
+├── application.yml
+└── templates/template_triagem_triaige.md
 ```
 
 ### Comunicação com outros serviços
 
 | Serviço / Recurso | Tipo | Finalidade |
 |---|---|---|
-| `triaige-srv-mcp-ai` | HTTP / REST | Dispara a análise de IA (`POST /api/ai/v1/analyze`) e recebe o callback do pipeline |
-| Fila `triaige-docs-preprocessing` (Q2) | SQS | Publica o "documento pronto" para o `triaige-srv-mcp-ai` consumir |
-| Fila de resultados (Q3) | SQS | Publica o relatório final para o serviço de notificação |
-| MySQL | Banco de dados | Persistência de sessões, casos, documentos e resultados de triagem |
-| S3 (buckets *raw* e *curated*) | Storage | Documentos originais e relatório final gerado |
+| `triaige-srv-mcp-ai` | HTTP (chamada) | `POST /api/ai/v1/analyze` para a análise de IA |
+| `triaige-srv-mcp-ai` | HTTP (callback recebido) | `POST /sessions/{id}/mcp-result` com o resultado do pipeline |
+| `triaige-srv-notification` | HTTP (callback recebido) | `POST /sessions/{id}/notification-result` com o resultado do envio |
+| `triaige-docs-received` (Q1) | SQS (producer/consumer interno) | Log de eventos de recebimento |
+| `triaige-docs-preprocessing` (Q2) | SQS (producer) | "Documento pronto" para o `triaige-srv-mcp-ai` |
+| `triaige-results-ready` (Q3) | SQS (producer) | "Resultado pronto" para o `triaige-srv-notification` |
+| S3 *raw* e *curated* | Storage | Documentos originais e relatório final |
+| MySQL (schema `triaige`) | Banco de dados | Compartilhado com os demais serviços e com o front |
 
-## Tecnologias utilizadas
+## Tecnologias
 
-- Java 21 + Spring Boot 3.5 (Web, Validation, Data JPA, Actuator)
-- MySQL (via `mysql-connector-j`)
-- AWS SDK v2 — SQS, S3, STS
-- Lombok, MapStruct
-- Jackson (com suporte a `java.time`)
-- Logback com `logstash-logback-encoder` (logs estruturados em JSON)
-- Micrometer + CloudWatch (métricas)
+- Java 21, Spring Boot 3.5.0 (Web, Validation, Data JPA, Actuator)
+- MySQL 8 (`mysql-connector-j`), Hibernate com `ddl-auto: validate`
+- AWS SDK v2 (SQS, S3, STS)
+- Lombok, MapStruct, Jackson (`java.time`)
+- Logback com `logstash-logback-encoder` (logs JSON)
+- Micrometer com exportação para CloudWatch
+- JUnit 5, Awaitility
 - Docker / Docker Compose
-- JUnit 5, Awaitility (testes)
-
-## Estrutura do projeto
-
-```text
-src/
-├── main/
-│   ├── java/br/com/triaige/orchestrator/
-│   │   ├── api/            controllers, DTOs de request/response
-│   │   ├── application/    use cases, services e listeners
-│   │   ├── domain/         entidades, enums, exceções, eventos
-│   │   ├── infrastructure/ config, persistence, s3, sqs, security, http, render
-│   │   └── shared/         erro, logging, métricas, utils
-│   └── resources/
-│       ├── application.yml
-│       └── templates/template_triagem_triaige.md
-└── test/
-    └── ...
-```
 
 ## Pré-requisitos
 
-- Java 21+
-- Maven (ou o wrapper `mvnw`)
+- Java 21 e Maven
 - Docker e Docker Compose
-- Credenciais AWS válidas (para os endpoints S3/SQS reais) — provisionados via Terraform em `triaige-infra`
+- MySQL acessível na porta `3306` com o schema `triaige` (o seed está em [`triaige-infra`](https://github.com/TriAIge/triaige-infra), `ansible/files/triaige-schema-seed.sql`)
+- Credenciais AWS válidas (variáveis `AWS_*` ou perfil `default` em `~/.aws/credentials`) e as filas e buckets já existentes na região
 
 ## Configuração
 
-### Variáveis de ambiente
+Crie um `.env` na raiz (não versionado). O `docker-compose.yml` monta `DB_URL` a partir de `MYSQL_DATABASE`, e passa `MYSQL_USER`/`MYSQL_PASSWORD` como `DB_USERNAME`/`DB_PASSWORD`; sem Docker, use diretamente as variáveis `DB_*`.
 
-Copie/ajuste o `.env` na raiz do projeto (já vem preenchido com defaults de desenvolvimento):
+| Variável | Obrigatória | Padrão | Descrição |
+|---|---|---|---|
+| `MYSQL_DATABASE` | Sim (Compose) | — | Nome do schema no MySQL do host (`triaige`) |
+| `MYSQL_USER` / `MYSQL_PASSWORD` | Sim (Compose) | — | Credenciais do MySQL |
+| `DB_URL` | Não | `jdbc:mysql://localhost:3306/triaige_srv_orchestrator?...` | URL JDBC (execução sem Docker) |
+| `DB_USERNAME` / `DB_PASSWORD` | Não | `triaige` / `triaige` | Credenciais JDBC (execução sem Docker) |
+| `SRV_ORCHESTRATOR_PORT` | Sim (Compose) | — | Porta publicada no host (o container escuta em `8080`) |
+| `SERVER_PORT` | Não | `8080` | Porta HTTP do serviço |
+| `AWS_REGION` | Não | `us-east-1` | Região AWS |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | Não | — | Credenciais AWS; se vazias, usa o perfil montado de `~/.aws` |
+| `AWS_SQS_ENDPOINT` / `AWS_S3_ENDPOINT` | Não | vazio | Endpoint alternativo; deixe em branco para a AWS real |
+| `RAW_DOCUMENTS_BUCKET` | Sim | `bucket-triaige-raw-certificacoes` | Bucket S3 *raw* |
+| `CURATED_DOCUMENTS_BUCKET` | Sim | `bucket-triaige-curated` | Bucket S3 *curated* |
+| `DOCS_RECEIVED_QUEUE_URL` | Sim | URL local de `triaige-docs-received` | Fila Q1 |
+| `DOCS_PREPROCESSING_QUEUE_URL` | Sim | URL local de `triaige-docs-preprocessing` | Fila Q2 |
+| `RESULTS_READY_QUEUE_URL` | Sim | URL local de `triaige-results-ready` | Fila Q3 |
+| `MCP_AI_BASE_URL` | Sim | `http://localhost:8084` | URL base do `triaige-srv-mcp-ai` |
+| `MCP_ANALYZE_TOKEN` | Sim | `dev-local-analyze-token` | Token enviado em `X-Internal-Token` ao `/analyze`; igual ao do mcp-ai |
+| `MCP_INTERNAL_TOKEN` | Sim | `dev-local-internal-token` | Token esperado no callback `mcp-result`; igual ao do mcp-ai |
+| `NOTIFICATION_INTERNAL_TOKEN` | Sim | `dev-local-internal-token` | Token esperado no callback `notification-result`; igual ao do notification |
+| `Q1_CONSUMER_ENABLED` | Não | `true` | Liga o consumidor interno da Q1 |
+| `CLOUDWATCH_METRICS_ENABLED` | Não | `false` | Exporta métricas para o CloudWatch |
+| `LOG_LEVEL` | Não | `INFO` | Nível de log de `br.com.triaige` |
 
-```env
-MYSQL_DATABASE=
-MYSQL_USER=
-MYSQL_PASSWORD=
-MYSQL_PORT=
-
-AWS_REGION=
-AWS_SQS_ENDPOINT=
-AWS_S3_ENDPOINT=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_SESSION_TOKEN=
-
-RAW_DOCUMENTS_BUCKET=
-CURATED_DOCUMENTS_BUCKET=
-DOCS_RECEIVED_QUEUE_URL=
-DOCS_PREPROCESSING_QUEUE_URL=
-RESULTS_READY_QUEUE_URL=
-
-MCP_INTERNAL_TOKEN=
-MCP_AI_BASE_URL=
-MCP_ANALYZE_TOKEN=
-
-SRV_ORCHESTRATOR_PORT=
-```
-
-> Nunca versione credenciais, tokens, senhas ou outros secrets reais no repositório.
-
-### Configuração local
-
-`application.yml` já reflete o cenário suportado (MySQL real via `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`, buckets/filas reais), com defaults sobrescrevíveis por variável de ambiente (ver `.env`). Não há LocalStack: os endpoints S3/SQS apontam para recursos reais provisionados via Terraform em `triaige-infra` — deixe `AWS_SQS_ENDPOINT`/`AWS_S3_ENDPOINT` em branco para usar os endpoints reais da região.
-
-Uma credencial de teste ativa é provisionada pelo seed do banco, disponibilizado via `triaige-infra` (Ansible), usada como:
-
-```
-Authorization: Bearer dev-local-token
-```
-
-> A chamada de análise de IA (`TriggerAiAnalysisUseCase`) exige o `triaige-srv-mcp-ai` no ar e um `MCP_ANALYZE_TOKEN` combinado entre os dois `.env`. Sem isso, o disparo falha com `MCP_AI_UNAVAILABLE`/`MCP_AI_HTTP_ERROR` e a sessão fica em `ANALYSIS_FAILED` — o pipeline de ingestão (`createSession` até `finalize`) continua funcionando normalmente.
+Os padrões existem só para desenvolvimento. Nunca versione credenciais, tokens ou senhas reais. Sem o `triaige-srv-mcp-ai` no ar e com `MCP_ANALYZE_TOKEN` combinado, a análise falha com `MCP_AI_UNAVAILABLE`/`MCP_AI_HTTP_ERROR` e a sessão fica em `ANALYSIS_FAILED`; a ingestão (`createSession` até `finalize`) continua funcionando.
 
 ## Executando localmente
 
-### Executando com Docker
+### Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-Sobe o MySQL (porta `MYSQL_PORT`, padrão `3316`) e o próprio serviço (porta `SRV_ORCHESTRATOR_PORT`, padrão `8080`).
+Sobe só o serviço, na porta `SRV_ORCHESTRATOR_PORT`. O MySQL não faz parte do Compose: o container acessa o banco do host em `host.docker.internal:3306`. Para encerrar, `docker compose down`.
 
-Para encerrar:
-
-```bash
-docker compose down
-```
-
-### Executando sem Docker
+### Sem Docker
 
 ```bash
 mvn spring-boot:run
 ```
 
-Exige MySQL acessível (ex: `docker compose up mysql` deste repositório) e credenciais AWS reais para os endpoints S3/SQS.
+Exige o MySQL acessível em `DB_URL` e credenciais AWS no ambiente.
+
+### Build e run da imagem
+
+```bash
+docker build -t triaige-srv-orchestrator .
+docker run -p 8080:8080 --env-file .env triaige-srv-orchestrator
+```
+
+Nesse modo, defina `DB_URL`, `DB_USERNAME` e `DB_PASSWORD` no `.env`.
 
 ## Testes
 
@@ -192,186 +163,84 @@ Exige MySQL acessível (ex: `docker compose up mysql` deste repositório) e cred
 mvn test
 ```
 
-Cobertura: testes unitários dos use cases e services, incluindo o fluxo de disparo de análise de IA (`TriggerAiAnalysisUseCaseTest`, feliz e cada ramo de falha), o contrato HTTP do cliente do `mcp-ai` (`McpAiAnalysisClientTest`) e o preenchimento do template do relatório (`TriageReportRendererTest`).
+Cobrem os use cases e services, incluindo o disparo da análise de IA (`TriggerAiAnalysisUseCaseTest`, caminho feliz e cada ramo de falha), o contrato HTTP do cliente do mcp-ai (`McpAiAnalysisClientTest`), o template do relatório (`TriageReportRendererTest`), a idempotência (`IdempotencyServiceTest`) e a configuração de métricas (`CloudWatchMetricsConfigTest`).
 
 ## API
 
-Base path: `/api/orchestrator/v1`. Contrato completo: [`docs/openapi.yaml`](./docs/openapi.yaml).
+Base path: `/api/orchestrator/v1`. Contrato completo em [`docs/openapi.yaml`](./docs/openapi.yaml).
 
-Todos os endpoints exigem `Authorization: Bearer <token>`; os POSTs com efeito colateral (`/sessions`, `.../complete`, `.../finalize`) também exigem o header `Idempotency-Key` (UUID).
+Os endpoints de escritório exigem `Authorization: Bearer <token>`. O token é a credencial de integração emitida no painel do [`triaige-front-nextjs`](https://github.com/TriAIge/triaige-front-nextjs) (`/admin/integracoes`), e o serviço compara o SHA-256 dele com `api_credentials.token_hash`. Os POSTs com efeito colateral (`/sessions`, `.../complete`, `.../finalize`) também exigem `Idempotency-Key` (UUID). O seed de desenvolvimento traz a credencial `dev-local-token`.
 
-| Método | Endpoint | Descrição |
-|---|---|---|
-| `POST` | `/sessions` | Cria sessão de triagem + caso |
-| `POST` | `/sessions/{sessionId}/documents/presign` | Solicita URL pré-assinada de upload |
-| `POST` | `/sessions/{sessionId}/documents/{documentId}/complete` | Confirma upload concluído |
-| `POST` | `/sessions/{sessionId}/finalize` | Encerra recebimento e publica para o `mcp-ai` (Q2) |
-| `GET` | `/sessions/{sessionId}` | Consulta status da sessão e documentos |
-| `POST` | `/sessions/{sessionId}/mcp-result` | Callback do `triaige-srv-mcp-ai` com o resultado do pipeline |
+| Método | Endpoint | Autenticação | Descrição |
+|---|---|---|---|
+| `POST` | `/sessions` | Bearer | Cria sessão de triagem e caso |
+| `POST` | `/sessions/{sessionId}/documents/presign` | Bearer | Solicita URL pré-assinada de upload |
+| `POST` | `/sessions/{sessionId}/documents/{documentId}/complete` | Bearer | Confirma upload concluído |
+| `POST` | `/sessions/{sessionId}/finalize` | Bearer | Encerra o recebimento e publica na Q2 |
+| `GET` | `/sessions/{sessionId}` | Bearer | Consulta status da sessão e documentos |
+| `POST` | `/sessions/{sessionId}/mcp-result` | `X-Internal-Token` | Callback do `triaige-srv-mcp-ai` |
+| `POST` | `/sessions/{sessionId}/notification-result` | `X-Internal-Token` | Callback do `triaige-srv-notification` |
 
-O endpoint `mcp-result` é a exceção ao esquema acima: usa `X-Internal-Token` (shared secret) em vez de `Authorization: Bearer` — chamada servidor-a-servidor em rede interna, não exposta via API Gateway.
-
-## Fluxo principal
-
-```text
-Documentos enviados pelo escritório
-   ↓
-Sessão criada + upload via URL pré-assinada (S3 raw)
-   ↓
-Finalização da sessão → publica na fila de pré-processamento (Q2)
-   ↓
-triaige-srv-mcp-ai processa (OCR, anonimização, agrupamento) e devolve callback
-   ↓
-Análise de IA disparada (POST /analyze no mcp-ai)
-   ↓
-Relatório renderizado no template canônico e gravado no S3 curated
-   ↓
-Publicação na fila de notificação (Q3)
-```
-
-### Fluxo de análise de IA
-
-Ao aplicar um `mcp-result` com `status = COMPLETED`/`PARTIALLY_COMPLETED`, o use case publica um evento de aplicação, consumido **após o commit** da transação do callback, em uma thread separada (para não segurar a resposta HTTP). A partir daí:
-
-1. a sessão é marcada como `ANALYZING`;
-2. o serviço chama `POST {mcp-ai}/api/ai/v1/analyze` (1 retry com backoff fixo para falha de rede/conexão);
-3. o relatório estruturado devolvido é renderizado no template canônico e gravado (JSON + Markdown) no S3 *curated*;
-4. o resultado é persistido (`triage_results`) e a sessão marcada como `ANALYSIS_COMPLETED`;
-5. o resultado é publicado na fila de notificação (Q3).
-
-Qualquer falha em qualquer passo marca a sessão como `ANALYSIS_FAILED` e audita o `errorCode` — nunca deixa uma sessão presa em `ANALYZING`.
+Os dois callbacks são chamadas servidor-a-servidor autenticadas por `X-Internal-Token`. A rota fica atrás do ALB (`/api/orchestrator/*`), portanto é alcançável pela internet; o token é a única proteção e precisa ser forte e mantido em segredo.
 
 ## Mensageria
 
-| Fila | Tipo | Uso |
+| Fila | Papel | Uso |
 |---|---|---|
-| `triaige-docs-received` (Q1) | Producer/Consumer interno | Log de eventos de recebimento; mecanismo de recuperação caso a escrita no MySQL falhe |
-| `triaige-docs-preprocessing` (Q2) | Producer | Contrato Orchestrator ↔ `mcp-ai` (schema versionado) |
-| Fila de resultados (Q3) | Producer | Publicada só em caso de sucesso da análise de IA, consumida pelo serviço de notificação |
+| `triaige-docs-received` (Q1) | Producer e consumer interno | Log de eventos de recebimento; recuperação caso a escrita no MySQL falhe |
+| `triaige-docs-preprocessing` (Q2) | Producer | Contrato orchestrator → mcp-ai (schema versionado) |
+| `triaige-results-ready` (Q3) | Producer | Publicada só quando a análise de IA termina com sucesso |
+
+Cada fila tem uma DLQ (`<fila>-dlq`) criada pelo `triaige-infra`.
 
 ## Banco de dados
 
-### Banco utilizado
+MySQL, schema `triaige`, compartilhado com `triaige-srv-mcp-ai`, `triaige-srv-notification` e `triaige-front-nextjs`. O schema é aplicado pelo `triaige-infra` e o Hibernate só valida (`ddl-auto: validate`).
 
-`MySQL`
+| Tabela | Acesso | Uso |
+|---|---|---|
+| `triage_sessions`, `legal_cases`, `legal_documents` | Leitura e escrita | Sessão, caso e documentos enviados |
+| `processing_steps`, `ai_tool_calls`, `audit_events` | Leitura e escrita | Etapas, chamadas de ferramentas de IA e auditoria |
+| `triage_results` | Escrita | Referência ao relatório gravado no S3 *curated* |
+| `notification_recipients` | Escrita | Destinatários da sessão (snapshot dos contatos ativos) |
+| `idempotency_records`, `protocol_sequences` | Leitura e escrita | Idempotência e geração de protocolo |
+| `law_firms`, `law_firm_contacts`, `api_credentials` | Leitura | Escritório, contatos e credenciais de API |
 
-### Principais entidades
-
-- `TriageSession`: sessão de triagem em andamento, com status do ciclo (recebimento → pipeline → análise de IA).
-- `LegalCase` / `LawFirm`: caso jurídico e escritório associado.
-- `LegalDocument`: documento enviado, com status de upload/processamento.
-- `AiToolCall`: auditoria de chamadas a ferramentas de IA.
-- `AuditEvent`: trilha de auditoria das operações do serviço.
-- `TriageResult`: resultado final da triagem, referenciando o relatório gravado no S3.
-- `IdempotencyRecord` / `ProtocolSequence`: suporte a idempotência e geração de protocolo único.
-- `ApiCredential`: credenciais de API dos escritórios.
+`law_firms`, `law_firm_contacts` e `api_credentials` são gravadas pelo `triaige-front-nextjs` no mesmo banco. O `token_hash` emitido pelo front é o mesmo validado no `Authorization: Bearer`.
 
 ## Integrações externas
 
-### triaige-srv-mcp-ai
+- **AWS S3:** presign de upload no *raw*, `HeadObject` na confirmação e gravação do relatório no *curated*.
+- **AWS SQS:** filas Q1, Q2 e Q3.
 
-**Finalidade:** processamento do pipeline de documentos (OCR, anonimização, agrupamento) e raciocínio de IA sobre o conteúdo anonimizado.
-
-**Tipo de comunicação:** HTTP/REST (chamada de análise) + SQS (fila de pré-processamento) + callback HTTP (retorno do pipeline).
-
-## Docker
-
-### Build da imagem
-
-```bash
-docker build -t triaige-srv-orchestrator .
-```
-
-### Executando a imagem
-
-```bash
-docker run \
-  -p 8080:8080 \
-  --env-file .env \
-  triaige-srv-orchestrator
-```
+As integrações com os demais serviços estão em [Comunicação com outros serviços](#comunicação-com-outros-serviços).
 
 ## Observabilidade
 
-- Logs estruturados em JSON (`logstash-logback-encoder`), com `correlationId`, `sessionId`, `endpoint`, `method`, `statusCode`, `latencyMs` via MDC — nunca conteúdo de documento ou dado pessoal.
-- Métricas via Micrometer (`IngestionLatencyMs`, `SessionsCreatedCount`, `DocumentsReceivedCount`, `SessionsFinalizedCount`, `FinalizeErrorCount`, `Q1PublishLatencyMs`, `Q2PublishLatencyMs`, `S3HeadObjectLatencyMs`, `AiAnalysisTriggerLatencyMs`, `AiAnalysisSuccessCount`, `AiAnalysisFailureCount`, `AiAnalysisRetryCount`, `CuratedReportRenderFailureCount`), exportação para CloudWatch desabilitada por padrão (`CLOUDWATCH_METRICS_ENABLED=true` para habilitar; namespace `Triaige/Orchestrator`).
-- Health Check: `GET /actuator/health`
+- Logs JSON (`logstash-logback-encoder`) com `correlationId`, `sessionId`, `endpoint`, `method`, `statusCode` e `latencyMs` via MDC, sem conteúdo de documento nem dado pessoal. Em produção vão para o log group `/triaige/triaige-srv-orchestrator`.
+- Métricas Micrometer no namespace `Triaige/Orchestrator` (`IngestionLatencyMs`, `SessionsCreatedCount`, `DocumentsReceivedCount`, `SessionsFinalizedCount`, `FinalizeErrorCount`, `Q1PublishLatencyMs`, `Q2PublishLatencyMs`, `S3HeadObjectLatencyMs`, `AiAnalysisTriggerLatencyMs`, `AiAnalysisSuccessCount`, `AiAnalysisFailureCount`, `AiAnalysisRetryCount`, `CuratedReportRenderFailureCount`), exportadas com `CLOUDWATCH_METRICS_ENABLED=true`.
+- Health check: `GET /actuator/health`.
 
 ## Segurança
 
-- Autenticação por credencial de API (`Authorization: Bearer`) para chamadas do escritório e por token interno (`X-Internal-Token`) para chamadas servidor-a-servidor.
-- Idempotência obrigatória (header `Idempotency-Key`) nas operações com efeito colateral.
-- Secrets (credenciais AWS, tokens, senha do banco) configurados via variáveis de ambiente, fora do código.
-- Nenhum conteúdo de documento ou dado pessoal é gravado nos logs estruturados.
+- `Authorization: Bearer` para escritórios; `X-Internal-Token` para os callbacks servidor-a-servidor (ver [API](#api) sobre a exposição pelo ALB).
+- `Idempotency-Key` obrigatória nas operações com efeito colateral.
+- Secrets via variáveis de ambiente, fora do código.
+- Nenhum conteúdo de documento ou dado pessoal nos logs.
 
 ## Repositórios relacionados
 
-Este repositório faz parte do ecossistema **TriAIge**.
-
 | Repositório | Responsabilidade |
 |---|---|
-| `triaige-front-nextjs` | Site institucional e mockup de dashboard (Next.js / Tailwind) |
-| `triaige-srv-mcp-ai` | Pipeline de pré-processamento (OCR, anonimização, agrupamento) e raciocínio de IA |
-| `triaige-infra` | Provisionamento de infraestrutura AWS (Terraform + Ansible) |
+| [`triaige-front-nextjs`](https://github.com/TriAIge/triaige-front-nextjs) | Portal dos escritórios e painel da equipe TriAIge (Next.js), com API própria sobre o banco compartilhado |
+| [`triaige-srv-mcp-ai`](https://github.com/TriAIge/triaige-srv-mcp-ai) | Pré-processamento (OCR, anonimização, agrupamento, resumo) e análise com IA |
+| [`triaige-srv-notification`](https://github.com/TriAIge/triaige-srv-notification) | Envio do relatório por e-mail, com retry e callback ao orchestrator |
+| [`triaige-infra`](https://github.com/TriAIge/triaige-infra) | Infraestrutura AWS (Terraform, Ansible e GitHub Actions) |
 
 ## Projeto acadêmico
 
-Projeto desenvolvido como Trabalho de Conclusão de Curso em:
-
-**Curso:** Sistemas de Informação
-**Instituição:** São Paulo Tech School
-**Ano:** 2026
-
-### Objetivo
-
-Aplicar IA generativa e engenharia de software para automatizar a triagem inicial de casos jurídicos, reduzindo o tempo de análise manual de documentos por escritórios de advocacia, com anonimização de dados sensíveis antes de qualquer processamento por IA.
-
-## Equipe
-
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/GabrielNunees063">
-        <img src="https://avatars.githubusercontent.com/u/125298578?v=4" width="100px;"><br>
-        <sub><b>Gabriel Nunes</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/Bielzinschiavo">
-        <img src="https://avatars.githubusercontent.com/u/125298078?v=4" width="100px;"><br>
-        <sub><b>Gabriel Schiavo</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/gyuliapiqueira">
-        <img src="https://avatars.githubusercontent.com/u/125298346?v=4" width="100px;"><br>
-        <sub><b>Gyulia Piqueira</b></sub>
-      </a>
-    </td>
-  </tr>
-
-  <tr>
-    <td align="center" colspan="3">
-      <table>
-        <tr>
-          <td align="center">
-            <a href="https://github.com/Kaori2">
-              <img src="https://avatars.githubusercontent.com/u/125297000?v=4" width="100px;"><br>
-              <sub><b>Kaori Katayama</b></sub>
-            </a>
-          </td>
-          <td align="center">
-            <a href="https://github.com/Miguel-Araujo325">
-              <img src="https://avatars.githubusercontent.com/u/125296970?v=4" width="100px;"><br>
-              <sub><b>Miguel Araujo</b></sub>
-            </a>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
+Trabalho de Conclusão de Curso de Sistemas de Informação na São Paulo Tech School (SPTech), 2026. Equipe e visão geral no [perfil da organização](https://github.com/TriAIge).
 
 ## Licença
 
-> Este projeto foi desenvolvido para fins acadêmicos.
+Distribuído sob a licença MIT — ver [LICENSE](LICENSE).
