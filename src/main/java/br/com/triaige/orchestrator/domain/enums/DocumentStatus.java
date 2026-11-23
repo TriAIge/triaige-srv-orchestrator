@@ -1,11 +1,8 @@
 package br.com.triaige.orchestrator.domain.enums;
 
 /**
- * PENDING_UPLOAD..UPLOAD_FAILED são do Orchestrator. Os demais valores
- * (OCR_IN_PROGRESS..PROCESSING_FAILED) são escritos pelo triaige-srv-mcp-ai, na
- * mesma linha compartilhada de legal_documents — precisam existir aqui também para que a
- * leitura via GetSessionStatusUseCase não falhe ao hidratar um documento já processado
- * pelo MCP.
+ * PENDING_UPLOAD a UPLOAD_FAILED são do orchestrator; os demais são gravados pelo mcp-ai na mesma
+ * linha de legal_documents e precisam existir aqui para a leitura da sessão não falhar.
  */
 public enum DocumentStatus {
     PENDING_UPLOAD,

@@ -83,7 +83,7 @@ public class PresignDocumentUploadUseCase {
 
         LocalDateTime expiresAt = LocalDateTime.ofInstant(presigned.expiration(), ZoneId.systemDefault());
 
-        log.info("Presigned upload URL generated: documentId={}, sessionId={}, rawObjectKey={}",
+        log.info("URL pré-assinada de upload gerada: documentId={}, sessionId={}, rawObjectKey={}",
                 documentId, sessionId, rawObjectKey);
 
         return PresignDocumentResponse.builder()

@@ -9,11 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 /**
- * Geração atômica de protocolo. Propagation REQUIRED: quando
- * chamada de dentro da transação de criação da sessão (caso de uso normal),
- * junta-se a ela — mesma transação do INSERT em triage_sessions, para que um
- * rollback não deixe o número "furado". Também pode ser chamada isoladamente
- * (ex.: testes de concorrência), abrindo sua própria transação nesse caso.
+ * Entra na transação de criação da sessão (REQUIRED) para que um rollback não deixe número de
+ * protocolo pulado.
  */
 @Slf4j
 @Service
@@ -32,7 +29,7 @@ public class ProtocolGeneratorService {
         Long sequence = repository.selectLastSequenceForUpdate(year);
 
         String protocolo = PROTOCOL_FORMAT.formatted(year, sequence);
-        log.info("Protocol generated: {}", protocolo);
+        log.info("Protocolo gerado: {}", protocolo);
         return protocolo;
     }
 }

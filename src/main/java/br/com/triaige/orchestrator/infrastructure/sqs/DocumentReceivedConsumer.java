@@ -16,24 +16,22 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import java.util.List;
 
 /**
- * Consumidor interno de Q1: reprocessa idempotentemente
- * (por documentId) a mesma lógica do passo 4 de POST .../complete, garantindo
- * que uma falha na escrita síncrona do MySQL seja recuperada sem exigir novo
- * upload do arquivo. Mesma instância do Orchestrator — não há outro consumidor.
+ * Consome a triaige-docs-received e reaplica, de forma idempotente, a confirmação do upload,
+ * recuperando escritas que falharam no MySQL sem exigir novo upload.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class Q1DocumentReceivedConsumer {
+public class DocumentReceivedConsumer {
 
     private final SqsClient sqsClient;
     private final AwsProperties awsProperties;
     private final ObjectMapper objectMapper;
     private final DocumentReceivedFinalizationService finalizationService;
 
-    @Scheduled(fixedDelayString = "${aws.sqs.q1-consumer.poll-interval-ms:5000}")
+    @Scheduled(fixedDelayString = "${aws.sqs.document-received-consumer.poll-interval-ms:5000}")
     public void poll() {
-        if (!awsProperties.getSqs().getQ1Consumer().isEnabled()) {
+        if (!awsProperties.getSqs().getDocumentReceivedConsumer().isEnabled()) {
             return;
         }
 
@@ -44,8 +42,8 @@ public class Q1DocumentReceivedConsumer {
 
         List<Message> messages = sqsClient.receiveMessage(ReceiveMessageRequest.builder()
                         .queueUrl(queueUrl)
-                        .maxNumberOfMessages(awsProperties.getSqs().getQ1Consumer().getMaxMessages())
-                        .waitTimeSeconds(awsProperties.getSqs().getQ1Consumer().getWaitTimeSeconds())
+                        .maxNumberOfMessages(awsProperties.getSqs().getDocumentReceivedConsumer().getMaxMessages())
+                        .waitTimeSeconds(awsProperties.getSqs().getDocumentReceivedConsumer().getWaitTimeSeconds())
                         .build())
                 .messages();
 
@@ -61,7 +59,7 @@ public class Q1DocumentReceivedConsumer {
                     event.getTamanhoBytes(), event.getCorrelationId());
             deleteMessage(queueUrl, message);
         } catch (Exception e) {
-            log.error("Failed to process Q1 message, will retry on next poll (or DLQ after maxReceiveCount): {}",
+            log.error("Falha ao processar mensagem da triaige-docs-received; nova tentativa no próximo poll (ou DLQ após maxReceiveCount): {}",
                     message.messageId(), e);
         }
     }

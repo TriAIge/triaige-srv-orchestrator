@@ -17,10 +17,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Aplica o passo 4 de POST .../complete: marca o documento como
- * RECEIVED e conclui o processing_step document_upload. Idempotente por documentId —
- * usada tanto pelo endpoint síncrono quanto pelo consumidor interno de Q1, que
- * reprocessa a mesma lógica caso a escrita síncrona no MySQL tenha falhado.
+ * Marca o documento como RECEIVED. Idempotente por documentId porque também roda no consumidor da
+ * triaige-docs-received, que recupera escritas que falharam no MySQL.
  */
 @Slf4j
 @Service
@@ -37,7 +35,7 @@ public class DocumentReceivedFinalizationService {
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
 
         if (document.getStatus() != DocumentStatus.PENDING_UPLOAD) {
-            log.info("Document {} already processed (status={}), skipping idempotent apply", documentId,
+            log.info("Documento {} já processado (status={}), ignorando reaplicação idempotente", documentId,
                     document.getStatus());
             return;
         }
@@ -59,6 +57,6 @@ public class DocumentReceivedFinalizationService {
         auditService.record(sessionId, lawFirmId, correlationId, EventType.DOCUMENT_UPLOADED,
                 "Documento recebido: " + documentId);
 
-        log.info("Document received finalized: documentId={}, sessionId={}", documentId, sessionId);
+        log.info("Recebimento do documento concluído: documentId={}, sessionId={}", documentId, sessionId);
     }
 }

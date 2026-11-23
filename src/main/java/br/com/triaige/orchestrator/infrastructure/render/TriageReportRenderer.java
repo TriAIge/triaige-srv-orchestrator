@@ -13,15 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Renderiza o relatório estruturado no formato do template canônico
- * {@code template_triagem_triaige.md}. Classe pura — sem I/O de rede
- * ou banco, só o template já carregado do classpath na construção.
- *
- * <p>O template tem blocos de tamanho fixo (3 pedidos, 2 pontos críticos, 2 precedentes,
- * 2 nomes de arquivo) mas exige 1 bloco por item do array recebido — em vez de um
- * {@code String.replace} ingênuo, esta classe localiza cada região variável por âncoras
- * literais estáveis do template (cabeçalhos de seção, textos fixos) e substitui todo o
- * conteúdo entre elas por blocos gerados dinamicamente em Java.</p>
+ * Preenche o template canônico com o relatório. Como o template tem blocos de tamanho fixo, cada
+ * região variável é localizada por âncoras do texto e trocada por blocos gerados.
  */
 @Component
 public class TriageReportRenderer {
@@ -245,7 +238,7 @@ public class TriageReportRenderer {
         return dateTime == null ? NOT_AVAILABLE_V1 : dateTime.format(DATE_FORMAT);
     }
 
-    /** Substitui o conteúdo estritamente entre {@code startMarker} e {@code endMarker} (ambos preservados). */
+    // Substitui o conteúdo entre startMarker e endMarker, preservando os dois.
     private String replaceBetween(String source, String startMarker, String endMarker, String replacement) {
         int startIdx = source.indexOf(startMarker);
         if (startIdx < 0) {

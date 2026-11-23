@@ -7,15 +7,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Publicado por {@code ApplyMcpResultUseCase} ao final de sua transação quando o
- * {@code mcp-result} recebido tem status COMPLETED/PARTIALLY_COMPLETED.
- *
- * <p>Deliberadamente um {@code record} com apenas tipos primitivos/DTOs — NUNCA entidades
- * JPA. O listener consome este evento numa thread {@code @Async}, fora da
- * transação/sessão Hibernate original; {@code TriageSession.legalCase} é {@code LAZY} e
- * acessá-lo depois do commit lançaria {@code LazyInitializationException}. Os dados
- * necessários são copiados para tipos simples ainda dentro da transação original, em
- * {@code ApplyMcpResultUseCase}.</p>
+ * Publicado ao aplicar um mcp-result COMPLETED ou PARTIALLY_COMPLETED. Só tipos simples, nunca
+ * entidades: o listener roda em outra thread, fora da sessão do Hibernate.
  */
 public record AiAnalysisTriggeredEvent(
         UUID sessionId,

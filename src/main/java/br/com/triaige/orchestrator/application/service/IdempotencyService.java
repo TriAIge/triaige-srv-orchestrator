@@ -23,23 +23,11 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Suporte a idempotência: registra (idempotencyKey, endpoint, requestHash,
- * responseBody, statusCode) e, em reenvio com a mesma chave e mesmo payload, retorna a
- * resposta original sem reexecutar efeitos colaterais. Mesma chave com payload diferente
- * resulta em 409 IDEMPOTENCY_KEY_CONFLICT.
+ * Reenvio com a mesma Idempotency-Key e o mesmo payload devolve a resposta original; com payload
+ * diferente, 409. Só respostas de sucesso são registradas.
  *
- * <p>Só chamadas que terminam com sucesso (a action não lança) são registradas: um retry
- * após falha de negócio simplesmente reexecuta a action, o que é seguro pois as próprias
- * operações (INSERT com UUID novo, transações) não duplicam efeito colateral em caso de erro.
- *
- * <p>Nota: existe uma janela de corrida teórica entre o SELECT e o INSERT do registro sob
- * duas requisições concorrentes com a mesma chave (não fechada por constraint/lock, diferente
- * de {@link ProtocolGeneratorService}); aceitável nesta fase pois o cliente já está fazendo
- * retry sequencial, não paralelo, ao reenviar a mesma Idempotency-Key.
- *
- * <p>A action executa dentro da mesma transação do registro de idempotência (garante
- * atomicidade entre efeito colateral e registro), o que mantém a conexão JDBC aberta durante
- * eventuais chamadas de I/O externo (S3/SQS) feitas pela action — aceitável no volume desta fase.
+ * <p>Há uma corrida possível entre o SELECT e o INSERT com duas requisições simultâneas da mesma
+ * chave; aceita porque os clientes repetem a chamada em sequência, não em paralelo.</p>
  */
 @Slf4j
 @Service
@@ -64,7 +52,7 @@ public class IdempotencyService {
             if (!record.getRequestHash().equals(requestHash)) {
                 throw new IdempotencyKeyConflictException(idempotencyKey);
             }
-            log.info("Idempotent replay: key={}, endpoint={}", idempotencyKey, endpoint);
+            log.info("Reenvio idempotente: key={}, endpoint={}", idempotencyKey, endpoint);
             T body = deserialize(record.getResponseBody(), responseType);
             return ResponseEntity.status(record.getStatusCode()).body(body);
         }

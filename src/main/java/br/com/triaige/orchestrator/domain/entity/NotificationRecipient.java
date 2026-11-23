@@ -6,10 +6,8 @@ import lombok.*;
 import java.util.UUID;
 
 /**
- * Espelha {@code notification_recipients}, lida pelo triaige-srv-notification (RecipientRepositoryPort)
- * para decidir quem notificar quando a análise de uma sessão termina. Os dados de contato ficam
- * denormalizados aqui (em vez de só a FK contact_id) porque {@code law_firm_contacts} pode mudar
- * depois da sessão ser criada, e a notificação deve refletir o destinatário no momento do caso.
+ * Os dados do contato são copiados (e não só a FK contact_id) porque law_firm_contacts pode mudar
+ * depois, e a notificação deve usar o destinatário do momento do caso.
  */
 @Entity
 @Table(name = "notification_recipients")

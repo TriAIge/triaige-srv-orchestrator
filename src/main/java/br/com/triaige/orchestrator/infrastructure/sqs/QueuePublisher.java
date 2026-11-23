@@ -3,8 +3,7 @@ package br.com.triaige.orchestrator.infrastructure.sqs;
 public interface QueuePublisher {
 
     /**
-     * Publica uma mensagem na fila SQS especificada. O payload é serializado
-     * para JSON antes do envio.
+     * Serializa o payload em JSON e publica na fila.
      *
      * @throws br.com.triaige.orchestrator.domain.exception.QueuePublishingException se a publicação falhar
      */

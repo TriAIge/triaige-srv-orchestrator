@@ -24,10 +24,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Não é @Transactional no nível do use case: os passos 2 (HeadObject no S3) e 3
- * (publicar em Q1) precisam ocorrer ANTES da transação MySQL do passo 4, por
- * design — Q1 é o mecanismo de recuperação caso a escrita no
- * MySQL falhe. A transação em si vive em {@link DocumentReceivedFinalizationService}.
+ * Sem @Transactional: o HeadObject e a publicação na triaige-docs-received vêm antes da escrita no
+ * MySQL, porque a fila é a recuperação caso essa escrita falhe.
  */
 @Slf4j
 @Component
@@ -70,15 +68,15 @@ public class CompleteDocumentUploadUseCase {
                 .correlationId(session.getCorrelationId())
                 .receivedAt(LocalDateTime.now())
                 .build();
-        long q1PublishStartedAt = System.currentTimeMillis();
+        long documentReceivedPublishStartedAt = System.currentTimeMillis();
         queuePublisher.publish(awsProperties.getSqs().getDocsReceivedQueueUrl(), message);
-        ingestionMetrics.recordQ1PublishLatency(System.currentTimeMillis() - q1PublishStartedAt);
+        ingestionMetrics.recordDocumentReceivedPublishLatency(System.currentTimeMillis() - documentReceivedPublishStartedAt);
 
         finalizationService.apply(documentId, sessionId, tamanhoBytes, session.getCorrelationId());
 
         ingestionMetrics.incrementDocumentsReceived();
 
-        log.info("Document upload completed: documentId={}, sessionId={}, tamanhoBytes={}",
+        log.info("Upload do documento confirmado: documentId={}, sessionId={}, tamanhoBytes={}",
                 documentId, sessionId, tamanhoBytes);
 
         return CompleteDocumentResponse.builder()

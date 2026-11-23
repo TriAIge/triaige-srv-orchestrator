@@ -20,10 +20,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * POST {basePath}/sessions/{sessionId}/mcp-result. O
- * triaige-srv-mcp-ai já escreveu diretamente o status/processed_bucket/processed_object_key
- * de cada legal_documents que processou; este use case cuida
- * apenas do que é responsabilidade do Orchestrator: status da sessão e auditoria.
+ * Aplica o callback do mcp-ai. O mcp-ai já gravou o status de cada documento; aqui só se atualizam
+ * a sessão e a auditoria.
  */
 @Slf4j
 @Component
@@ -62,7 +60,7 @@ public class ApplyMcpResultUseCase {
                 "Resultado do MCP recebido: status=%s, gruposProcessados=%d, documentosFalhos=%d"
                         .formatted(request.getStatus(), processedGroups, failedDocuments));
 
-        log.info("MCP result applied: sessionId={}, status={}, processedGroups={}, failedDocuments={}",
+        log.info("Resultado do mcp-ai aplicado: sessionId={}, status={}, processedGroups={}, failedDocuments={}",
                 sessionId, request.getStatus(), processedGroups, failedDocuments);
 
         if (AI_ANALYSIS_ELIGIBLE_STATUSES.contains(request.getStatus())) {

@@ -33,11 +33,11 @@ public class IngestionMetrics {
         registry.counter("FinalizeErrorCount", "code", errorCode).increment();
     }
 
-    public void recordQ1PublishLatency(long millis) {
+    public void recordDocumentReceivedPublishLatency(long millis) {
         registry.timer("Q1PublishLatencyMs").record(Duration.ofMillis(millis));
     }
 
-    public void recordQ2PublishLatency(long millis) {
+    public void recordPreprocessingPublishLatency(long millis) {
         registry.timer("Q2PublishLatencyMs").record(Duration.ofMillis(millis));
     }
 

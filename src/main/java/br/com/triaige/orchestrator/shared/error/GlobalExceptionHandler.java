@@ -36,19 +36,19 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
-        log.warn("Validation error: {} - path={}", message, request.getRequestURI());
+        log.warn("Erro de validação: {} - path={}", message, request.getRequestURI());
         return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request);
     }
 
     @ExceptionHandler({MissingRequestHeaderException.class, MissingServletRequestPartException.class})
     public ResponseEntity<ErrorResponse> handleMissingRequestPart(Exception ex, HttpServletRequest request) {
-        log.warn("Missing request data: {} - path={}", ex.getMessage(), request.getRequestURI());
+        log.warn("Dado obrigatório ausente na requisição: {} - path={}", ex.getMessage(), request.getRequestURI());
         return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        log.error("Exceção não tratada: {}", ex.getMessage(), ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Erro interno inesperado", request);
     }
 

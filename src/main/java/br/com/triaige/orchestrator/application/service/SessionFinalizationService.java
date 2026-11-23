@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/** Passo 5 de POST .../finalize — transação MySQL após a publicação em Q2. */
+/** Transação MySQL do finalize, executada depois da publicação na triaige-docs-preprocessing. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -57,6 +57,6 @@ public class SessionFinalizationService {
         auditService.record(sessionId, lawFirmId, session.getCorrelationId(), EventType.SESSION_FINALIZED,
                 "Sessão finalizada com " + receivedDocuments.size() + " documento(s)");
 
-        log.info("Session finalized: sessionId={}, documentsCount={}", sessionId, receivedDocuments.size());
+        log.info("Sessão finalizada: sessionId={}, documentsCount={}", sessionId, receivedDocuments.size());
     }
 }

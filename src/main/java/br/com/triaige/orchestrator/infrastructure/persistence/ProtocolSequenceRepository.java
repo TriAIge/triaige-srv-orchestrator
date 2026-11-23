@@ -7,10 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * A geração de protocolo segue literalmente o algoritmo:
- * um UPSERT atômico seguido de SELECT ... FOR UPDATE na mesma transação, para
- * que o número nunca seja "furado" em caso de rollback. Depende de sintaxe
- * MySQL (ON DUPLICATE KEY UPDATE / FOR UPDATE) — não funciona no perfil dev (H2).
+ * UPSERT atômico seguido de SELECT ... FOR UPDATE na mesma transação, para não pular número em
+ * rollback. Usa sintaxe do MySQL (ON DUPLICATE KEY UPDATE).
  */
 public interface ProtocolSequenceRepository extends JpaRepository<ProtocolSequence, Integer> {
 

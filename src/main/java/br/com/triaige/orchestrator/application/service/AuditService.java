@@ -30,7 +30,7 @@ public class AuditService {
                 .build();
 
         AuditEvent saved = repository.save(event);
-        log.info("Audit event recorded: sessionId={}, correlationId={}, eventType={}",
+        log.info("Evento de auditoria registrado: sessionId={}, correlationId={}, eventType={}",
                 sessionId, correlationId, eventType.getValue());
         return saved;
     }

@@ -16,11 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * POST {basePath}/sessions/{sessionId}/notification-result — callback do triaige-srv-notification
- * ao concluir (sucesso ou falha) a notificação de todos os destinatários ativos de uma sessão,
- * fechando o gap identificado de a sessão nunca refletir se a notificação foi enviada.
- */
+/** Aplica o callback do triaige-srv-notification e fecha a sessão em NOTIFIED ou NOTIFICATION_FAILED. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -54,7 +50,7 @@ public class ApplyNotificationResultUseCase {
                 "Resultado da notificação recebido: status=%s, notificados=%d, falhos=%d"
                         .formatted(request.getStatus(), request.getRecipientsNotified(), request.getRecipientsFailed()));
 
-        log.info("Notification result applied: sessionId={}, status={}, notified={}, failed={}",
+        log.info("Resultado da notificação aplicado: sessionId={}, status={}, notified={}, failed={}",
                 sessionId, request.getStatus(), request.getRecipientsNotified(), request.getRecipientsFailed());
     }
 }

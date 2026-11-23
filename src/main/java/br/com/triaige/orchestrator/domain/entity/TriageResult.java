@@ -9,11 +9,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Mapeia a tabela {@code triage_results} — uma linha por sessão
- * analisada com sucesso ({@code UNIQUE KEY uk_triage_results_session_id}).
- * {@code sessionId}/{@code jurisprudenceCallId} são UUIDs puros, não relações JPA: não há
- * necessidade de navegação de {@link TriageResult} para {@link TriageSession} em nenhum
- * fluxo desta fase.
+ * Uma linha por sessão analisada com sucesso (uk_triage_results_session_id). Os UUIDs não são
+ * relações JPA porque nenhum fluxo navega do resultado para a sessão.
  */
 @Entity
 @Table(name = "triage_results")
