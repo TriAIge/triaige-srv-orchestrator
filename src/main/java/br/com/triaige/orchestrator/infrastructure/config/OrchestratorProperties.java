@@ -23,7 +23,7 @@ public class OrchestratorProperties {
         private int uploadUrlTtlMinutes = 15;
     }
 
-    /** Autenticação de endpoints internos (rede interna, ex: callback do triaige-srv-mcp-ai), fora do esquema de Bearer token de api_credentials. */
+    /** Tokens dos callbacks servidor-a-servidor (X-Internal-Token), separados das api_credentials. */
     @Data
     public static class Internal {
         private String mcpCallbackToken = "dev-local-internal-token";
@@ -38,7 +38,7 @@ public class OrchestratorProperties {
         private String analyzePath = "/api/ai/v1/analyze";
         private String analyzeToken = "dev-local-analyze-token";
         private int connectTimeoutMs = 5000;
-        /** > ai.analysis.timeout-ms (120000) do mcp-ai, com folga. */
+        /** Maior que o ai.analysis.timeout-ms do mcp-ai (120000), com folga. */
         private int readTimeoutMs = 130000;
     }
 }

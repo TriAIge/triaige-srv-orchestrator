@@ -17,13 +17,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 
 /**
- * Autentica callbacks internos — do triaige-srv-mcp-ai e do
- * triaige-srv-notification — via {@code X-Internal-Token}, comparado ao shared secret
- * configurado para cada origem — não o esquema de Bearer token de {@link ApiCredentialAuthFilter},
- * que não se aplica a estes endpoints (não há {@code api_credentials} envolvida numa chamada
- * servidor-a-servidor interna). Em produção, os endpoints também não devem ficar expostos via
- * ALB/API Gateway (rede interna apenas) — isso é responsabilidade de infraestrutura, fora deste
- * código.
+ * Autentica os callbacks do mcp-ai e do notification por X-Internal-Token, com um segredo por
+ * origem. As rotas ficam atrás do ALB, então o token é a única proteção.
  */
 @Component
 @RequiredArgsConstructor

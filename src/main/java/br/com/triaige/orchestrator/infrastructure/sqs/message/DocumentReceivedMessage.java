@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Contrato Q1 (triaige-docs-received). */
+/** Mensagem da fila triaige-docs-received. */
 @Data
 @Builder
 @NoArgsConstructor

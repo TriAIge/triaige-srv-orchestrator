@@ -16,12 +16,12 @@ public class AwsProperties {
         private String endpoint;
         private String docsReceivedQueueUrl;
         private String docsPreprocessingQueueUrl;
-        /** Fila Q3, publicada só em caso de sucesso da análise de IA. */
+        /** Fila triaige-results-ready, publicada só quando a análise de IA termina com sucesso. */
         private String resultsReadyQueueUrl;
-        private Q1Consumer q1Consumer = new Q1Consumer();
+        private DocumentReceivedConsumerSettings documentReceivedConsumer = new DocumentReceivedConsumerSettings();
 
         @Data
-        public static class Q1Consumer {
+        public static class DocumentReceivedConsumerSettings {
             private boolean enabled = true;
             private long pollIntervalMs = 5000;
             private int waitTimeSeconds = 10;

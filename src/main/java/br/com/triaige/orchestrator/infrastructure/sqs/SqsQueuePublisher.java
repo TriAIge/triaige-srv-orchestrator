@@ -29,9 +29,9 @@ public class SqsQueuePublisher implements QueuePublisher {
 
             SendMessageResponse response = sqsClient.sendMessage(request);
 
-            log.info("Message published: queue={}, messageId={}", queueUrl, response.messageId());
+            log.info("Mensagem publicada: queue={}, messageId={}", queueUrl, response.messageId());
         } catch (Exception e) {
-            log.error("Failed to publish message to queue: {}", queueUrl, e);
+            log.error("Falha ao publicar mensagem na fila: {}", queueUrl, e);
             throw new QueuePublishingException(queueUrl, e);
         }
     }

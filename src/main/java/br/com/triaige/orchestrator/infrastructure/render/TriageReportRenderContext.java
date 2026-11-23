@@ -4,11 +4,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Dados que {@link TriageReportRenderer} precisa e que não vêm do relatório estruturado em
- * si: já conhecidos pelo Orchestrator antes/depois da chamada ao
- * mcp-ai. {@code hashAuditoriaLog} é calculado pelo chamador a partir do MESMO texto JSON
- * que será gravado em {@code .json} no S3 curated — nunca recalculado aqui, para garantir
- * que hash exibido e conteúdo persistido correspondam exatamente.
+ * Dados do relatório que vêm do orchestrator. hashAuditoriaLog é calculado pelo chamador sobre o
+ * mesmo JSON gravado no S3, para que o hash exibido bata com o arquivo.
  */
 public record TriageReportRenderContext(
         String protocolo,

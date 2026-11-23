@@ -54,7 +54,7 @@ aws:
     docs-received-queue-url: ${DOCS_RECEIVED_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-received}
     docs-preprocessing-queue-url: ${DOCS_PREPROCESSING_QUEUE_URL:http://localhost:4566/000000000000/triaige-docs-preprocessing}
     results-ready-queue-url: ${RESULTS_READY_QUEUE_URL:http://localhost:4566/000000000000/triaige-results-ready}
-    q1-consumer:
+    document-received-consumer:
       enabled: ${Q1_CONSUMER_ENABLED:true}
       poll-interval-ms: ${Q1_POLL_INTERVAL_MS:5000}
       wait-time-seconds: ${Q1_WAIT_TIME_SECONDS:10}

@@ -44,26 +44,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Coração do fluxo (passos 3-11): monta o {@code AnalysisRequest},
- * chama o mcp-ai, renderiza o relatório no template canônico, grava JSON+Markdown no S3
- * curated, persiste {@code triage_results} e publica em Q3 — ou, em qualquer falha, marca
- * {@code ANALYSIS_FAILED} e audita o código de erro.
+ * Chama o mcp-ai, renderiza o relatório, grava JSON e Markdown no S3 curated, persiste
+ * triage_results e publica na triaige-results-ready; qualquer falha marca ANALYSIS_FAILED.
  *
- * <p><b>Não é {@code @Transactional}</b>: orquestra várias transações curtas
- * ({@link #markAnalyzing}, {@link #persistResult}, {@link #handleFailure}, via
- * {@link TransactionTemplate} — {@code @Transactional} não funcionaria aqui por
- * auto-invocação) intercaladas com I/O externo que não deve segurar uma conexão JDBC
- * (chamada HTTP de até ~130s, 2 PutObject no S3, publish no SQS). O
- * {@code try/catch} em {@link #execute} é a rede de segurança que garante que qualquer
- * falha intermediária — mesmo depois de a chamada ao mcp-ai já ter tido sucesso — ainda
- * resulte em {@code ANALYSIS_FAILED}, nunca numa sessão presa em {@code ANALYZING}.</p>
+ * <p>Sem @Transactional: usa transações curtas via {@link TransactionTemplate} para não segurar a
+ * conexão JDBC durante a chamada HTTP (até ~130 s) e as gravações no S3.</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TriggerAiAnalysisUseCase {
 
-    /** ai_tool_calls.provider do registro-stub — espelha AiToolProvider.MOCKAPI_IO do mcp-ai (fonte real da chamada). */
+    // Mesmo provider que o mcp-ai grava em ai_tool_calls (AiToolProvider.MOCKAPI_IO).
     private static final String JURISPRUDENCE_PROVIDER = "mockapi_io";
     private static final long NETWORK_RETRY_DELAY_MS = 5000;
 
@@ -97,19 +89,19 @@ public class TriggerAiAnalysisUseCase {
             }
         } catch (Exception e) {
             String errorCode = errorCodeFor(e);
-            log.error("AI analysis failed: sessionId={}, errorCode={}", event.sessionId(), errorCode, e);
+            log.error("Falha na análise de IA: sessionId={}, errorCode={}", event.sessionId(), errorCode, e);
             handleFailure(event, errorCode);
             metrics.incrementFailure(errorCode);
         }
     }
 
-    /** Idempotência preventiva. */
+    // Retorna false se outra execução já levou a sessão adiante (evento duplicado).
     private boolean markAnalyzing(AiAnalysisTriggeredEvent event) {
         return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
             TriageSession session = sessionRepository.findById(event.sessionId())
                     .orElseThrow(() -> new SessionNotFoundException(event.sessionId()));
             if (session.getStatus() != SessionStatus.COMPLETED && session.getStatus() != SessionStatus.PARTIALLY_COMPLETED) {
-                log.warn("AI analysis skipped, session not eligible anymore (possível evento duplicado): sessionId={}, status={}",
+                log.warn("Análise de IA ignorada, sessão não está mais elegível (possível evento duplicado): sessionId={}, status={}",
                         event.sessionId(), session.getStatus());
                 return false;
             }
@@ -121,7 +113,7 @@ public class TriggerAiAnalysisUseCase {
         }));
     }
 
-    /** 1 retry com backoff fixo de 5s, só para falha de rede/conexão. */
+    // Um retry com espera fixa de 5 s, só para falha de rede.
     private AnalysisResponseDto callMcpAi(AiAnalysisTriggeredEvent event) {
         AnalysisRequestDto request = buildAnalysisRequest(event);
         try {
@@ -200,12 +192,8 @@ public class TriggerAiAnalysisUseCase {
                 rendered.markdown().getBytes(StandardCharsets.UTF_8), "text/markdown");
     }
 
-    /**
-     * {@code UNIQUE KEY uk_triage_results_session_id}: uma segunda tentativa falha
-     * explicitamente, nunca sobrescreve. Retorna {@code false} para a execução "perdedora"
-     * — o chamador não deve publicar em Q3 nem contar sucesso de novo: a execução vencedora
-     * já cuidou disso.
-     */
+    // A uk_triage_results_session_id faz a execução duplicada falhar em vez de sobrescrever; quem
+    // recebe false não publica nem conta sucesso de novo.
     private boolean persistResult(AiAnalysisTriggeredEvent event, AnalysisResponseDto response, RenderedReport rendered) {
         return Boolean.TRUE.equals(transactionTemplate.execute(status -> {
             UUID jurisprudenceCallId = response.getJurisprudenceCallId();
@@ -239,12 +227,8 @@ public class TriggerAiAnalysisUseCase {
         }));
     }
 
-    /**
-     * Satisfaz {@code fk_triage_results_jurisprudence_call} local: o UUID de
-     * {@code jurisprudenceCallId} foi gerado na tabela {@code ai_tool_calls} do mcp-ai — um
-     * banco distinto — não na do Orchestrator. Sem este stub, o INSERT em
-     * {@code triage_results} violaria a FK local sempre que houvesse jurisprudência citada.
-     */
+    // Garante em ai_tool_calls a linha exigida por fk_triage_results_jurisprudence_call, cujo UUID
+    // vem do mcp-ai.
     private void ensureJurisprudenceCallStub(UUID sessionId, UUID jurisprudenceCallId) {
         if (aiToolCallRepository.existsById(jurisprudenceCallId)) {
             return;
@@ -261,7 +245,7 @@ public class TriggerAiAnalysisUseCase {
         aiToolCallRepository.save(stub);
     }
 
-    /** Falha aqui é logada + métrica, não reverte ANALYSIS_COMPLETED já commitado (gap conhecido). */
+    // Falha aqui só gera log e métrica; não desfaz o ANALYSIS_COMPLETED já gravado.
     private void publishResultsReady(AiAnalysisTriggeredEvent event, AnalysisResponseDto response) {
         ResultsReadyMessage message = ResultsReadyMessage.builder()
                 .sessionId(event.sessionId())

@@ -9,11 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Resposta de {@code POST /api/ai/v1/analyze} no triaige-srv-mcp-ai (schema do relatório
- * estendido para "2.0"). Cópia local do contrato,
- * mesma convenção de {@link AnalysisRequestDto}.
- */
+/** Resposta de POST /api/ai/v1/analyze (schema 2.0). Cópia local do contrato. */
 @Data
 @Builder
 @NoArgsConstructor
@@ -47,7 +43,7 @@ public class AnalysisResponseDto {
         private Recomendacao recomendacao;
         private Metadados metadados;
 
-        // (schemaVersion "2.0") — null quando schemaVersion="1.0".
+        // Presente no schema 2.0; null no 1.0.
         private ClassificacaoInicial classificacaoInicial;
         private AvaliacaoCriticidade avaliacaoCriticidade;
         private PartesExtraidas partesExtraidas;

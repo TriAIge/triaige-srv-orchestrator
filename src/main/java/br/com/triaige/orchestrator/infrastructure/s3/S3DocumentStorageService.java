@@ -44,16 +44,12 @@ public class S3DocumentStorageService {
 
             return s3Presigner.presignPutObject(presignRequest);
         } catch (S3Exception e) {
-            log.error("Failed to presign PUT URL: bucket={}, objectKey={}", bucket, objectKey, e);
+            log.error("Falha ao gerar URL pré-assinada de PUT: bucket={}, objectKey={}", bucket, objectKey, e);
             throw new DocumentStorageException("Falha ao gerar URL pré-assinada para upload", e);
         }
     }
 
-    /**
-     * Grava conteúdo diretamente no S3 (JSON estruturado e Markdown
-     * renderizado em bucket-triaige-curated). Ao contrário de {@link #presignPutObject}, o
-     * próprio Orchestrator faz o upload — não há cliente externo envolvido neste fluxo.
-     */
+    /** Grava o relatório (JSON e Markdown) no S3 curated; aqui é o próprio orchestrator que envia, sem URL pré-assinada. */
     public void putObject(String bucket, String objectKey, byte[] content, String contentType) {
         try {
             s3Client.putObject(PutObjectRequest.builder()
@@ -63,7 +59,7 @@ public class S3DocumentStorageService {
                             .build(),
                     RequestBody.fromBytes(content));
         } catch (S3Exception e) {
-            log.error("Failed to PutObject: bucket={}, objectKey={}", bucket, objectKey, e);
+            log.error("Falha no PutObject: bucket={}, objectKey={}", bucket, objectKey, e);
             throw new DocumentStorageException(
                     "Falha ao gravar objeto no S3 curated: bucket=%s, objectKey=%s".formatted(bucket, objectKey), e);
         }
@@ -83,7 +79,7 @@ public class S3DocumentStorageService {
             if (e.statusCode() == 404) {
                 return Optional.empty();
             }
-            log.error("Failed to HeadObject: bucket={}, objectKey={}", bucket, objectKey, e);
+            log.error("Falha no HeadObject: bucket={}, objectKey={}", bucket, objectKey, e);
             throw new DocumentStorageException("Falha ao verificar existência do objeto no S3", e);
         }
     }

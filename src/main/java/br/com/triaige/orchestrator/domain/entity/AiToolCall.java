@@ -10,13 +10,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Mapeia a tabela {@code ai_tool_calls} do PRÓPRIO Orchestrator (schema espelhado — o
- * mcp-ai tem sua cópia independente da mesma tabela, em outro banco). Usada nesta fase
- * apenas para gravar um registro-stub que satisfaz {@code fk_triage_results_jurisprudence_call}
- * quando {@code jurisprudenceCallId} vem do mcp-ai (gap documentado — o UUID de fato foi
- * gerado na tabela ai_tool_calls do mcp-ai, não nesta).
- * {@code requestPayload}/{@code responsePayload} ficam sempre nulos aqui — nunca replicar
- * texto/PII entre serviços.
+ * Usada só para gravar a linha exigida por fk_triage_results_jurisprudence_call. Os payloads ficam
+ * nulos de propósito, para não replicar texto nem dado pessoal entre serviços.
  */
 @Entity
 @Table(name = "ai_tool_calls")

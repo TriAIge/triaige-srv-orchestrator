@@ -2,11 +2,7 @@ package br.com.triaige.orchestrator.domain.exception;
 
 import org.springframework.http.HttpStatusCode;
 
-/**
- * Erro HTTP EXPLÍCITO devolvido pelo triaige-srv-mcp-ai (502/504/422/401/etc). Nunca elegível
- * ao retry único de rede: o mcp-ai já esgotou suas próprias
- * tentativas internas antes de responder com um status de erro.
- */
+/** Erro HTTP devolvido pelo mcp-ai. Não é repetido: o mcp-ai já esgotou as próprias tentativas. */
 public class McpAiHttpException extends RuntimeException {
 
     private final HttpStatusCode status;

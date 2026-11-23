@@ -11,11 +11,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * Disparo da análise de IA acontece em thread separada, após o
- * commit da transação do callback {@code mcp-result}, para não segurar a resposta HTTP ao
- * MCP pela duração de uma chamada que pode levar até {@code ANALYSIS_TIMEOUT_MS} (120s).
- * Sizing modesto: cada tarefa é I/O-bound (HTTP + S3 + SQS) e o volume esperado é baixo
- * (uma análise por sessão finalizada).
+ * Executor da análise de IA, fora da requisição do callback mcp-result para não segurar a resposta
+ * por até 120 s. Pool pequeno: tarefas de I/O e uma análise por sessão.
  */
 @Configuration
 @EnableAsync
@@ -34,11 +31,8 @@ public class AsyncConfig {
     }
 
     /**
-     * {@code TriggerAiAnalysisUseCase} orquestra várias transações curtas separadas por I/O
-     * externo (HTTP, S3, SQS) dentro de um único método não-transacional — {@code @Transactional}
-     * não funcionaria ali por auto-invocação (chamada {@code this.metodo()} dentro da mesma
-     * classe não passa pelo proxy AOP do Spring). {@link TransactionTemplate} programático
-     * evita esse problema por completo.
+     * Transações programáticas para o TriggerAiAnalysisUseCase, onde @Transactional não funcionaria
+     * por auto-invocação (a chamada interna não passa pelo proxy do Spring).
      */
     @Bean
     public TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {

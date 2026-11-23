@@ -8,10 +8,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 
-/**
- * Bean único (não recriado por chamada, ao contrário de {@code OrchestratorCallbackClient}
- * do mcp-ai) — necessário para permitir {@code MockRestServiceServer.bindTo(...)} em teste.
- */
+/** Bean único (não recriado por chamada) para que os testes possam usar MockRestServiceServer.bindTo. */
 @Configuration
 @RequiredArgsConstructor
 public class McpAiClientConfig {

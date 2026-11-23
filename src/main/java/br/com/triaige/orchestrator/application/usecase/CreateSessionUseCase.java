@@ -74,7 +74,7 @@ public class CreateSessionUseCase {
 
         ingestionMetrics.incrementSessionsCreated();
 
-        log.info("Session created: sessionId={}, protocolo={}, correlationId={}",
+        log.info("Sessão criada: sessionId={}, protocolo={}, correlationId={}",
                 saved.getId(), protocolo, correlationId);
 
         return CreateSessionResponse.builder()
@@ -86,11 +86,8 @@ public class CreateSessionUseCase {
                 .build();
     }
 
-    /**
-     * Vincula os contatos ativos do escritório como destinatários de notificação da sessão
-     * (notification_recipients), snapshot no momento da criação. Sem isso, o triaige-srv-notification consome o resultado da IA mas não encontra
-     * ninguém para notificar (RecipientRepositoryPort.findActiveBySessionId retorna vazio).
-     */
+    // Copia os contatos ativos para notification_recipients no momento da criação, para que o
+    // notification envie a quem era contato quando o caso foi aberto.
     private void linkActiveContactsAsRecipients(TriageSession session) {
         List<LawFirmContact> activeContacts =
                 lawFirmContactRepository.findByLawFirmIdAndAtivoTrue(session.getLawFirm().getId());
@@ -107,6 +104,6 @@ public class CreateSessionUseCase {
             notificationRecipientRepository.save(recipient);
         }
 
-        log.info("Notification recipients linked: sessionId={}, count={}", session.getId(), activeContacts.size());
+        log.info("Destinatários vinculados à sessão: sessionId={}, count={}", session.getId(), activeContacts.size());
     }
 }

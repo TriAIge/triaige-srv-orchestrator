@@ -19,9 +19,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 
 /**
- * Autentica toda requisição sob {@code orchestrator.base-path} via Authorization: Bearer <token>.
- * Em sucesso, expõe {@code lawFirmId} e {@code apiCredentialId} como request
- * attributes, consumidos pelos controllers via @RequestAttribute.
+ * Autentica as rotas da API por Authorization: Bearer e expõe lawFirmId e apiCredentialId como
+ * atributos da requisição para os controllers.
  */
 @Component
 @RequiredArgsConstructor

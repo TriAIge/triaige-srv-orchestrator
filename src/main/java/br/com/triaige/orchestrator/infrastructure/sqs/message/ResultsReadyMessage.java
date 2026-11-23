@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-/** Contrato Q3 (triaige-results-ready). Payload mínimo, publicado só em sucesso. */
+/** Mensagem da fila triaige-results-ready, publicada só em sucesso e com o mínimo de dados. */
 @Data
 @Builder
 @NoArgsConstructor

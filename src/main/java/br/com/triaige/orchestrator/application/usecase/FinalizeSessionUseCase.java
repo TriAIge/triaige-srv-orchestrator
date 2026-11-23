@@ -25,10 +25,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Não é @Transactional no use case: a publicação em Q2 (passo 4) precisa
- * ocorrer antes da transação MySQL (passo 5), por design —
- * se a transação falhar depois do publish, nada no estado muda (nada foi
- * commitado ainda), então não há inconsistência a reconciliar nesta fase.
+ * Sem @Transactional: publica na triaige-docs-preprocessing antes da transação MySQL. Se a
+ * transação falhar depois, nada foi gravado e não há estado a reconciliar.
  */
 @Slf4j
 @Component
@@ -60,15 +58,15 @@ public class FinalizeSessionUseCase {
         }
 
         DocumentReadyMessage message = buildReadyMessage(session, receivedDocuments);
-        long q2PublishStartedAt = System.currentTimeMillis();
+        long preprocessingPublishStartedAt = System.currentTimeMillis();
         queuePublisher.publish(awsProperties.getSqs().getDocsPreprocessingQueueUrl(), message);
-        ingestionMetrics.recordQ2PublishLatency(System.currentTimeMillis() - q2PublishStartedAt);
+        ingestionMetrics.recordPreprocessingPublishLatency(System.currentTimeMillis() - preprocessingPublishStartedAt);
 
         sessionFinalizationService.finalizeSession(sessionId, lawFirmId, receivedDocuments);
 
         ingestionMetrics.incrementSessionsFinalized();
 
-        log.info("Session finalize requested: sessionId={}, documentsCount={}", sessionId, receivedDocuments.size());
+        log.info("Finalização da sessão solicitada: sessionId={}, documentsCount={}", sessionId, receivedDocuments.size());
 
         return FinalizeSessionResponse.builder()
                 .sessionId(sessionId)

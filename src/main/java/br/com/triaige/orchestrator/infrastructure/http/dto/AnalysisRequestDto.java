@@ -8,11 +8,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Corpo de {@code POST /api/ai/v1/analyze} no triaige-srv-mcp-ai. Cópia
- * local do contrato — não há módulo compartilhado entre os dois serviços, mesma convenção já
- * usada para {@code McpResultCallbackRequest} (direção oposta).
- */
+/** Corpo de POST /api/ai/v1/analyze. Cópia local do contrato: não há módulo compartilhado entre os serviços. */
 @Data
 @Builder
 @NoArgsConstructor

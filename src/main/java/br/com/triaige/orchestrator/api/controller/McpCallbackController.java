@@ -14,9 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 /**
- * Callback síncrono do triaige-srv-mcp-ai ao concluir o pipeline de uma sessão. Autenticado
- * por {@link br.com.triaige.orchestrator.infrastructure.security.InternalTokenAuthFilter}
- * (X-Internal-Token), não pelo esquema de Bearer token do restante da API.
+ * Callback do triaige-srv-mcp-ai. Autenticado por X-Internal-Token
+ * ({@link br.com.triaige.orchestrator.infrastructure.security.InternalTokenAuthFilter}), não pelo Bearer da API.
  */
 @RestController
 @RequestMapping("${orchestrator.base-path}/sessions")

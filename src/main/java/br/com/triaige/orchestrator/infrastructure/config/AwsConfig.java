@@ -31,7 +31,7 @@ public class AwsConfig {
 
         String endpoint = awsProperties.getSqs().getEndpoint();
         if (endpoint != null && !endpoint.isBlank()) {
-            log.info("Using custom SQS endpoint: {}", endpoint);
+            log.info("Usando endpoint SQS alternativo: {}", endpoint);
             builder.endpointOverride(URI.create(endpoint))
                    .credentialsProvider(StaticCredentialsProvider.create(
                            AwsBasicCredentials.create("test", "test")));
@@ -49,7 +49,7 @@ public class AwsConfig {
 
         String endpoint = awsProperties.getS3().getEndpoint();
         if (endpoint != null && !endpoint.isBlank()) {
-            log.info("Using custom S3 endpoint: {}", endpoint);
+            log.info("Usando endpoint S3 alternativo: {}", endpoint);
             builder.endpointOverride(URI.create(endpoint))
                    .forcePathStyle(true)
                    .credentialsProvider(StaticCredentialsProvider.create(

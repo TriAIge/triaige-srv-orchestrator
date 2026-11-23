@@ -1,6 +1,6 @@
 package br.com.triaige.orchestrator.domain.enums;
 
-/** Espelha br.com.triaige.mcpai.domain.enums.AiToolCallStatus (schema compartilhado, script.sql). */
+/** Mesmos valores do enum equivalente no mcp-ai (schema compartilhado). */
 public enum AiToolCallStatus {
     IN_PROGRESS,
     SUCCESS,

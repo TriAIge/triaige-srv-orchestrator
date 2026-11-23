@@ -19,11 +19,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Log estruturado por requisição: um evento JSON com
- * timestamp, level, service, endpoint, method, correlationId, sessionId
- * (quando aplicável), statusCode e latencyMs — nunca conteúdo de documentos
- * ou dados pessoais. correlationId/sessionId ficam no MDC para que qualquer
- * log emitido durante a requisição (inclusive de outras camadas) já os inclua.
+ * Um log JSON por requisição, sem conteúdo de documento nem dado pessoal. correlationId e
+ * sessionId vão para o MDC para que os logs das outras camadas também os carreguem.
  */
 @Slf4j
 @Component
